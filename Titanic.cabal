@@ -26,11 +26,14 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Pretty
+      Pretty2
+      TextAlign
   other-modules:
       Paths_Titanic
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists
   build-depends:
       base >=4.7 && <5
   default-language: Haskell2010
@@ -41,7 +44,7 @@ executable Titanic-exe
       Paths_Titanic
   hs-source-dirs:
       app
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
     , base >=4.7 && <5
@@ -54,7 +57,7 @@ test-suite Titanic-test
       Paths_Titanic
   hs-source-dirs:
       test
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
     , base >=4.7 && <5

@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main (main) where
 
 import Lib
