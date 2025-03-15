@@ -1,12 +1,6 @@
 module Pretty2 where
 
-type WB = Int
-type WA = Int
-
-type ShiftDepth = Maybe Int
-shiftInf = Nothing
-
-type Doc = (DocTree, WB, ShiftDepth, WA)
+import Types
 
 widthB :: Doc -> WB
 widthB (_, w, _, _) = w
@@ -16,17 +10,6 @@ shDepth (_, _, d, _) = d
 
 widthA :: Doc -> WA
 widthA (_, _, _, w) = w
-
-data DocTree 
-    = DEmpty
-    | DString    String
-    | DAlignS    Doc
-    | DAlignR    Doc
-    | DSeq      [Doc]
-    | DStack    [Doc]
-    | DEither    Doc  Doc
-    | DLayout    Int  Doc
-    deriving (Show)
 
 ppEmpty :: Doc
 ppEmpty = (DEmpty, 0, Nothing, 0)
@@ -90,15 +73,6 @@ ppLayout l d@(_, wb, s, wa) = (DLayout l d, wb, s, wa)
 (+++) :: Doc -> Doc -> Doc
 (+++) l r = ppSeq [l, r]
 
-data Line
-    = LString String
-    | LChar Char
-    | LConcat Line Line
-    | LAlignLeft Line
-    | LFill Char (Maybe Int)
-    | LEmpty
-    deriving (Show, Eq, Ord)
-
 genLine :: Line -> String
 genLine line = iter line [] where
     iter :: Line -> String -> String
@@ -136,8 +110,6 @@ maybeToInt :: Maybe Int -> Int
 maybeToInt Nothing = 0
 maybeToInt (Just x) = x
 
-type CtxBox = ([Line], Int)
-
 ret :: [Line] -> Int -> CtxBox
 ret = (,)  
 
@@ -172,6 +144,7 @@ toLines size off (d, wb, s, wa) = case d of
         aligned
     DEither doc1 doc2 -> undefined
     DLayout size' doc -> toLines size' off doc
+    DCustom d cont -> cont size off d
 
 showDoc :: Doc -> String
 showDoc d = do

@@ -1,6 +1,14 @@
+{-# LANGUAGE MultiParamTypeClasses 
+           , TupleSections 
+           , FlexibleInstances
+           , FlexibleContexts
+           #-}
+
 module TextAlign where
 
+import Pretty
 import Pretty2
+import Types
 
 data Align
   = ACenter
@@ -8,12 +16,23 @@ data Align
   | ALeft
   | ARight
 
-data AlignConfig
-  = AlignConfig { align             :: Align
-                , bannedTrailings   :: [String]
-                , trailingPenalty   :: Int
-                , extraSpacePenalty :: Int
-                }
+newtype TextDoc = TextDoc { getTextDoc :: String }
+
+instance DocConfCustom TextDoc Align where
+  confDocLines align size _ =
+    (,0) . formatText align size . getTextDoc
+
+instance Fmt TextDoc where
+  format = fmtLift format' where
+    format' ""        = Just $ ppConfCustom AJustify
+    format' "right"   = Just $ ppConfCustom ARight
+    format' "left"    = Just $ ppConfCustom ALeft
+    format' "center"  = Just $ ppConfCustom ACenter 
+    format' "justify" = Just $ ppConfCustom AJustify
+    format' _         = Nothing
+
+ppText :: Align -> String -> Doc
+ppText align text = ppConfCustom align (TextDoc text)
 
 paragraphs :: String -> [String]
 paragraphs ('\n':'\n':tl) = [] : paragraphs (dropWhile (=='\n') tl)
@@ -58,6 +77,7 @@ injectSpacesRight ws len =
     zipped
 
 injectSpacesLeft :: [String] -> Int -> Line
+-- injectSpacesLeft [] _ = LEmpty
 injectSpacesLeft ws len =
   let zipped = foldl (\l r -> LConcat l (LConcat (LChar ' ') (LString r))) 
                      (LString $ head ws) 
@@ -125,4 +145,16 @@ run align width = do
   text <- readFile "Lorem.txt"
   let fmt = genLine $ reduceLines $ formatText align width text
   putStr fmt
+
+superFormat3 =
+  runFmt @[(Int, TextDoc)]
+         "lay<5><<d><center>>"
+         [ (500, TextDoc $ "Ala ma kota")
+         , (5, TextDoc $ "Lorem Ipsum Dolor Sit Amet")
+         ]
+
+superFormat4 =
+  runFmt @(Int, TextDoc)
+         "lay<10><<d><%=<#<justify>>>>"
+         (10, TextDoc $ "Ala ma kota")
 
