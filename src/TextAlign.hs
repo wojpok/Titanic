@@ -148,13 +148,13 @@ run align width = do
 
 superFormat3 =
   runFmt @[(Int, TextDoc)]
-         "lay<5><<d><center>>"
+         "lay<20><&<s<<d><#<% = <left>>>>>>"
          [ (500, TextDoc $ "Ala ma kota")
          , (5, TextDoc $ "Lorem Ipsum Dolor Sit Amet")
          ]
 
 superFormat4 =
   runFmt @(Int, TextDoc)
-         "lay<10><<d><%=<#<justify>>>>"
+         "lay<10><<d><% = <#<justify>>>>"
          (10, TextDoc $ "Ala ma kota")
 

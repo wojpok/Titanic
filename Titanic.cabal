@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Colors
       Lib
       Pretty
       Pretty2
@@ -36,7 +37,8 @@ library
       src
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal ==1.1.2
+    , base >=4.7 && <5
   default-language: Haskell2010
 
 executable Titanic-exe
@@ -48,6 +50,7 @@ executable Titanic-exe
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
+    , ansi-terminal ==1.1.2
     , base >=4.7 && <5
   default-language: Haskell2010
 
@@ -61,5 +64,6 @@ test-suite Titanic-test
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
+    , ansi-terminal ==1.1.2
     , base >=4.7 && <5
   default-language: Haskell2010

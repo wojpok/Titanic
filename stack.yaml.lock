@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/topics/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: ansi-terminal-1.1.2@sha256:8e669f090aa3b9a62ef78f687dda12a19231ee163d2084522464036980a322ea,2758
+    pantry-tree:
+      sha256: 3c533b6c2d3c59606365a7c5ab3ca9addf09482c374f33328a5c0c907d5c2996
+      size: 1184
+  original:
+    hackage: ansi-terminal-1.1.2
 snapshots:
 - completed:
     sha256: 1964d439d2a152be4238053f3f997a09fb348391984daab86d724975ef9a423f
