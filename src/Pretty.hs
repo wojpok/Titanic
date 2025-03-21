@@ -2,6 +2,7 @@
            , UndecidableInstances
            , TypeApplications
            , MultiParamTypeClasses
+           , Rank2Types
            #-}
 
 module Pretty where
@@ -10,11 +11,18 @@ import Types
 import Numeric (showHex)
 import Pretty2
 
+type Formatter a = String -> Maybe (a -> Doc)
+
 class Fmt a where
-  format :: String -> Maybe (a -> Doc)  
+  format :: Formatter a 
   fmtApp :: String -> a -> Maybe Doc
-  fmtApp fmt val = do f <- format fmt
-                      return $ f val 
+  fmtApp fmt val = do format fmt <*> pure val 
+
+class Fmt2 a where
+  format2 :: (forall a. Formatter a -> Formatter a) -> Formatter a 
+
+newtype FmtTrans = FmtTrans 
+  { runFmtTrans :: forall a. Formatter a -> Formatter a }
 
 runFmt :: Fmt a => String -> a -> IO ()
 runFmt fmt d = 
@@ -53,7 +61,8 @@ comb f m = do
   fm <- m
   return $ f . fm
 
-fmtLift :: (String -> Maybe (a -> Doc)) -> String -> Maybe (a -> Doc)
+
+fmtLift :: forall a. Formatter a -> Formatter a
 fmtLift cont "" = cont ""
 fmtLift cont fmt = 
   case formatList fmt of
@@ -74,6 +83,20 @@ instance Fmt Int where
     format' "d" = Just ppShow
     format' "x" = Just $ (ppString . ("0x" ++) . flip showHex "")
     format' _ = Nothing
+
+instance Fmt2 Int where
+  format2 _ "" = Just ppShow
+  format2 _ "x" = Just $ (ppString . ("0x" ++) . flip showHex "")
+  format2 _ _ = Nothing
+
+instance Fmt2 a => Fmt2 [a] where
+  format2 lift f = 
+    case f of
+      "" -> (ppStack .) <$> fmap <$> (lift (format2 lift)) ""
+      's':tl -> do tfmt <- brMatch tl
+                   tf <- lift (format2 lift) (fst tfmt)
+                   Just $ (ppSeq . fmap tf) 
+      _ -> Nothing 
 
 instance Fmt a => Fmt [a] where
   format = fmtLift format' where

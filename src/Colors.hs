@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances
            , MultiParamTypeClasses 
+           , Rank2Types
            #-}
 
 module Colors where
@@ -77,4 +78,8 @@ testColor = do
   putStr $ "Hello World"
   putStrLn ansiColorReset
 
-
+colorFormatLift :: forall a. Formatter a -> Formatter a
+colorFormatLift cont fmt =
+  case formatList fmt of
+    Just ["color", bg, fg, tl] -> undefined
+    _ -> cont fmt

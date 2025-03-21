@@ -21,7 +21,9 @@ description:         Please see the README on GitHub at <https://github.com/wojp
 
 dependencies:
 - base >= 4.7 && < 5
-- ansi-terminal == 1.1.2
+- ansi-terminal == 1.1
+- containers
+- parsec
 
 ghc-options:
 - -XTypeApplications
