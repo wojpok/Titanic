@@ -1,30 +1,31 @@
 module Depth where
 
--- lista zagnieżdżeń + dł ostatniego elementu
-data Shift 
-  = Fixed       Int {- >= -} Int 
-  | Shift [Int] Int {- >= -} Int
+data Width
+  = Shift Int Int Width
+  | Fixed Int
+  deriving (Show, Eq, Ord)
 
-noShift :: Int -> Shift
-noShift w = Fixed w w
+fixedWidth :: Int -> Width
+fixedWidth x = Fixed x
 
-extendShift :: Int -> Shift -> Shift
-extendShift w (Fixed f l) = Fixed (f + w) (l + w)
-extendShift w (Shift (s:ss) f l) = Shift (w + s : ss) f l
+shiftWidth :: Width -> Width
+shiftWidth = Shift 0 0
 
-newShift :: Shift -> Shift
-newShift (Fixed f l) = Shift [0] f l
-newShift (Shift ss f l) = Shift (0:ss) f l
+width :: Width -> Int
+width (Fixed f) = f
+width (Shift f b tl) = max b (f + width tl)
 
-seqShift :: Shift -> Shift -> Shift
-seqShift (Fixed f _) (Fixed f' l') = Fixed (f + f') (f + l')
-seqShift (Fixed f _) tl = extendShift f tl
-seqShift (Shift ss f _) (Fixed f' l') = Shift ss (f + f') (f + l')
-seqShift (Shift ss f _) (Shift (s:ss') f' l') = Shift (ss ++ [f + s] ++ ss') f' l'
+seqWidth :: Width -> Width -> Width
+seqWidth (Fixed f) (Fixed f') = Fixed (f + f')
+seqWidth (Fixed f) (Shift f' b' tl) = Shift (f + f') (f + b') tl
+seqWidth (Shift f b tl) w = Shift f b (seqWidth tl w) 
 
-stackShift :: Shift -> Shift -> Shift
-stackShift (Fixed f _) (Fixed f' l') = Fixed (max f f') l'
--- ???????????
-stackSfigt (Fixed f _) (Shift ss f' l') = Shift ss f l'
+stackWidth :: Width -> Width -> Width
+stackWidth (Fixed f) (Fixed f') = Fixed (max f f')
+stackWidth (Fixed f) (Shift f' b' tl') = Shift f' (max f b') tl'
+stackWidth (Shift f b tl) (Shift f' b' tl') = Shift (max f f') (max b b') (stackWidth tl tl')
+stackWidth (Shift f b tl) (Fixed f') = Shift f (max b f') tl
 
-
+extWidth :: Int -> Width -> Width
+extWidth w (Fixed f) = Fixed (w + f)
+extWidth w (Shift f b tl) = Shift (f + w) (b + w) tl
