@@ -11,6 +11,7 @@ import Types
 import Numeric (showHex)
 import Pretty2
 import Depth
+import Colors
 
 type Formatter a = String -> Maybe (a -> Doc)
 
@@ -49,7 +50,6 @@ formatList fmt =
   let prefix = takeWhile (/='<') fmt
       suffix = dropWhile (/='<') fmt
 
-      -- monomorphic folding under pair, might be done as one-liner
       fs :: String -> Maybe [String]
       fs [] = Just []
       fs w = do (f1, tl) <- brMatch w
@@ -72,6 +72,8 @@ fmtLift cont fmt =
     Just ["#", r] -> comb ppAlignS $ fmtLift cont r
     Just [('%':str), r] -> comb (\d -> ppSeq [(ppString str), d]) $ fmtLift cont r
     Just [('%':str)] -> Just (const $ ppString str)
+    Just ["col", col, r] -> comb (ppColor $ readColor col) $ fmtLift cont r
+    Just ["box", r] -> comb ppBox $ fmtLift cont r
     Just _ -> cont fmt
     Nothing -> Nothing
 
@@ -125,7 +127,7 @@ instance (Fmt a, Fmt b) => Fmt (a, b) where
 
 superFormat = 
   runFmt @[(Int, Int)]
-         "lay<100><&<s<<d><#<% = <d>>>>>>"
+         "col<yellow><box<col<white><&<s<<d><#<col<red><% = <col<green><box<col<blue><d>>>>>>>>>>>>"
          [ (10, 10000000)
          , (2000, 2)
          , (3, 30000)

@@ -33,6 +33,10 @@ extWidth :: Int -> Width -> Width
 extWidth w (Fixed f) = Fixed (w + f)
 extWidth w (Shift f b tl) = Shift (f + w) (b + w) tl
 
+backExtWidth :: Int -> Width -> Width
+backExtWidth w (Fixed f) = Fixed (w + f)
+backExtWidth w (Shift f b tl) = Shift f (b + w) (backExtWidth w tl)
+
 shiftCount :: Width -> Int
 shiftCount (Fixed _) = 0
 shiftCount (Shift _ _  tl) = 1 + shiftCount tl

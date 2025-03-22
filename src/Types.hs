@@ -8,6 +8,17 @@ module Types where
 
 import Depth
 
+data Color
+  = CBlack
+  | CRed
+  | CGreen
+  | CYellow
+  | CBlue
+  | CMagenta
+  | CCyan
+  | CWhite
+  deriving (Show, Eq, Ord)
+
 data Line
   = LString String
   | LChar Char
@@ -15,6 +26,8 @@ data Line
   | LAlignLeft Line
   | LFill Char (Maybe Int)
   | LEmpty
+  | LColor Color
+  | LColorPop 
   deriving (Show, Eq, Ord)
 
 type Doc = (DocTree, Width)
@@ -38,8 +51,10 @@ data DocTree
   | DAlignR    Doc
   | DSeq      [Doc]
   | DStack    [Doc]
-  | DEither    Doc  Doc
-  | DLayout    Int  Doc
+  | DEither    Doc   Doc
+  | DLayout    Int   Doc
+  | DColor     Color Doc
+  | DBox       Doc
   | forall a. DCustom a (Int -> Int -> a -> CtxBox)   
 
 instance Show DocTree where

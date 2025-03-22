@@ -5,6 +5,7 @@ module Pretty2 where
 import Control.Monad
 import Control.Monad.State
 import Depth
+import Colors
 import Types
 
 getWidth :: Doc -> Width
@@ -46,8 +47,37 @@ ppStack xs =
 ppLayout :: Int -> Doc -> Doc
 ppLayout l d@(_, w) = (DLayout l d, w) 
 
+ppColor :: Color -> Doc -> Doc
+ppColor c d@(_, w) = (DColor c d, w)
+
+ppBox :: Doc -> Doc
+ppBox d@(_, w) = (DBox d, extWidth 1 $ backExtWidth 1 w)
+
 (+++) :: Doc -> Doc -> Doc
 (+++) l r = ppSeq [l, r]
+
+pushCol :: Color -> State [Color] ()
+pushCol c = do xs <- get
+               put (c:xs)
+
+topCol :: [Color] -> Color
+topCol (c:_) = c
+topCol [] = CWhite
+
+popCol :: State [Color] String
+popCol = do xs <- get
+            case xs of
+              [] -> return ()
+              (c:cs) -> put cs
+            (ansiColorFg . topCol) <$> get
+
+trColorLine :: [Line] -> [Line]
+trColorLine xs = map (\x -> fst $ runState (iter x) []) xs where
+  iter :: Line -> State [Color] Line
+  iter (LConcat s1 s2) = LConcat <$> iter s1 <*> iter s2
+  iter (LColor c)      = pushCol c >> pure (LString (ansiColorFg c))
+  iter LColorPop       = LString <$> popCol 
+  iter l               = pure l
 
 genLine :: Line -> String
 genLine line = iter line [] where
@@ -66,15 +96,6 @@ genLine line = iter line [] where
 reduceLines :: [Line] -> Line
 reduceLines [] = LEmpty
 reduceLines (l:ls) = LConcat l (LConcat (LChar '\n') $ reduceLines ls) 
-
-
-maybeToList :: [Maybe a] -> [a]
-maybeToList (Just a : xs) = a : maybeToList xs
-maybeToList (Nothing : xs) = maybeToList xs
-maybeToList [] = []
-
-unMaybe :: Maybe a -> a
-unMaybe (Just x) = x
 
 linesFill :: Int -> Int -> [Line] -> [Line] -> [Line]
 linesFill sl sr (l:ls) (r:rs) = LConcat l r : linesFill sl sr ls rs
@@ -151,18 +172,23 @@ toLines size offset (d, w) = do
       let maxSize = foldr (\(_, s) s' -> max s s') 0 ds'
       let aligned = map (\box -> alignDoc maxSize box) ds'
       return (concat (map fst aligned), maxSize)
-
-{-
-    DEither doc1 doc2 -> undefined
-    DLayout size' doc -> toLines size' off doc
-    DCustom d cont -> cont size off d
--}
+    DColor col doc -> do
+      (lines, w) <- toLines size offset doc
+      return (map (\l -> LConcat (LColor col) (LConcat l LColorPop)) lines, w)
+    DBox doc -> do
+      (lines, w) <- toLines (size - 2) (offset + 1) doc
+      let mapped = map (\l -> LConcat (LChar '#') (LConcat l (LChar '#'))) lines
+          w' = w + 2
+      return ([LFill '#' (Just w')]  ++ mapped ++ [LFill '#' (Just w')], w')
+    -- DEither doc1 doc2 -> undefined
+    --DLayout size' doc -> toLines size' off doc
+    --DCustom d cont -> cont size off d
 -- toLines = undefined
 
 showDoc :: Doc -> String
 showDoc d = do
   let (ls, _) = fst $ runState (toLines 0 0 d) []
-  genLine $ reduceLines ls
+  genLine $ reduceLines $ trColorLine ls
 
 sstest = ppAlignR $ ppAlignS $ ppString "def"                
                 
