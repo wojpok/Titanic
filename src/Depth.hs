@@ -6,10 +6,13 @@ data Width
   deriving (Show, Eq, Ord)
 
 fixedWidth :: Int -> Width
-fixedWidth x = Fixed x
+fixedWidth = Fixed
 
 shiftWidth :: Width -> Width
 shiftWidth = Shift 0 0
+
+resetWidth :: Width -> Width
+resetWidth = fixedWidth . width
 
 width :: Width -> Int
 width (Fixed f) = f
@@ -29,3 +32,11 @@ stackWidth (Shift f b tl) (Fixed f') = Shift f (max b f') tl
 extWidth :: Int -> Width -> Width
 extWidth w (Fixed f) = Fixed (w + f)
 extWidth w (Shift f b tl) = Shift (f + w) (b + w) tl
+
+shiftCount :: Width -> Int
+shiftCount (Fixed _) = 0
+shiftCount (Shift _ _  tl) = 1 + shiftCount tl
+
+shiftList :: Width -> [Int]
+shiftList (Fixed _) = []
+shiftList (Shift f _ tl) = f : shiftList tl

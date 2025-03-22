@@ -6,34 +6,30 @@
 
 module Types where
 
+import Depth
+
 data Line
-    = LString String
-    | LChar Char
-    | LConcat Line Line
-    | LAlignLeft Line
-    | LFill Char (Maybe Int)
-    | LEmpty
-    deriving (Show, Eq, Ord)
+  = LString String
+  | LChar Char
+  | LConcat Line Line
+  | LAlignLeft Line
+  | LFill Char (Maybe Int)
+  | LEmpty
+  deriving (Show, Eq, Ord)
 
-type WB = Int
-type WA = Int
-
-type ShiftDepth = Maybe Int
-shiftInf = Nothing
-
-type Doc = (DocTree, WB, ShiftDepth, WA)
+type Doc = (DocTree, Width)
 
 class DocConfCustom a c | a -> c where
   confDocLines :: c -> Int -> Int -> a -> CtxBox
 
 ppConfCustom :: DocConfCustom a c => c -> a -> Doc
-ppConfCustom conf x = (DCustom x (confDocLines conf), 0, Just 0, 0)
+ppConfCustom conf x = (DCustom x (confDocLines conf), fixedWidth 0)
 
 class DocCustom a where
   docLines :: Int -> Int -> a -> CtxBox
 
 ppCustom :: DocCustom a => a -> Doc
-ppCustom x = (DCustom x docLines, 0, Just 0, 0)
+ppCustom x = (DCustom x docLines, fixedWidth 0)
 
 data DocTree 
   = DEmpty

@@ -27,15 +27,16 @@ data ColorDoc = ColorDoc { docColor :: Maybe (Color, Color)
                          }
     deriving (Show)
 
+{-
 instance DocConfCustom ColorDoc (Maybe (Color, Color)) where
-  confDocLines col size d node = 
-    let (lines, s) = toLines size d (docRest node)
+  confDocLines col size node = 
+    let (lines, s) = toLines size (docRest node)
     in case (docColor node) of
       Nothing -> (map (LConcat (LString ansiColorReset)) lines, s)
       Just (fg, bg) ->
         let color = ansiColor fg bg
         in (map (\e -> (LConcat (LString color) (LConcat e (LString ansiColorReset)))) lines, s)
-
+-}
 {-
 ppColor :: Color -> Color -> Doc -> Doc
 ppColor fg bg d@(doc, wa, b, wb) = 

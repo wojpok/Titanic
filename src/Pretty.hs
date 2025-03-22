@@ -10,6 +10,7 @@ module Pretty where
 import Types
 import Numeric (showHex)
 import Pretty2
+import Depth
 
 type Formatter a = String -> Maybe (a -> Doc)
 
