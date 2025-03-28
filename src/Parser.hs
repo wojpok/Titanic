@@ -1,6 +1,14 @@
 {-# LANGUAGE MultilineStrings #-}
 
-module Parser where
+module Parser ( StyleValue (..)
+              , StyleDict (..)
+              , DocNode (..)
+              , DocNodeSR (..)
+              , NodeStructure (..)
+              , Interp (..)
+              , SR (..)
+              , parseStyle
+              ) where
 
 import Text.Parsec (ParseError, parse, try, anyChar, alphaNum)
 import Text.Parsec.String (Parser)
@@ -25,12 +33,20 @@ newtype StyleDict = StyleDict { getStyleDict :: [(String, StyleValue)] }
   deriving Show
 
 data DocNode 
-  = DocNode String (Maybe StyleValue) StyleDict RecDoc
+  = DocNode String (Maybe StyleValue) StyleDict NodeStructure
   deriving Show
 
-data RecDoc
-  = Recs [DocNode]
-  | Inter [Either String (Int, DocNode)]
+newtype DocNodeSR = DocNodeSR { getDocNodeSR :: SR DocNode }
+  deriving Show
+
+data NodeStructure 
+  = NSRecs [DocNodeSR]
+  | NSInter [Interp]
+  deriving Show
+
+data Interp
+  = IString (SR String)
+  | INode Int DocNodeSR
   deriving Show
 
 data SR a 
@@ -51,21 +67,10 @@ lexeme p = p <* whitespace
 lexoid :: Parser a -> Parser ()
 lexoid p = p *> whitespace
 
-spaceSep :: Parser a -> Parser a
-spaceSep p = do
-    x <- p
-    void $ many $ char ' '
-    return x
-
 digits :: Parser Int
 digits = do
     ds <- many1 $ satisfy isDigit
     return $ read ds
-{-
-styleValue := string | bool | enum | number
-(doc{styleProp: styleValue, ...} nesting or %descr)
-descr := "some string $1()"
--}
 
 parseStyleValue :: Parser StyleValue
 parseStyleValue = lexeme $ (parseString <|> parseBool <|> parseInt <|> parseColor <|> parseIdent)
@@ -102,11 +107,6 @@ parseStyleDict = do
   lexoid $ char '}'
   return (StyleDict sty)
 
-example = """
-          { height: 10
-          , sep : ' - ' 
-          }
-          """
 srParse :: Parser a -> Parser (SR a)
 srParse p = do
   sr <- many (satisfy (\x -> x == '&' || x == '*'))
@@ -126,24 +126,25 @@ parseDocNode = do
   lexoid $ char ')'
   return $ DocNode ident immediate style recDoc
 
-parseRecs :: Parser RecDoc
-parseRecs = lexeme $ Recs <$> many parseDocNode
+parseDocNodeSR :: Parser DocNodeSR
+parseDocNodeSR = DocNodeSR <$> srParse parseDocNode
 
-parseInter :: Parser RecDoc
+parseRecs :: Parser NodeStructure
+parseRecs = lexeme $ NSRecs <$> many parseDocNodeSR
+
+parseInter :: Parser NodeStructure
 parseInter = do
-  Inter <$> (many1 $ lexeme (try parseStr <|> parseDoc))
+  NSInter <$> (many1 $ lexeme (try parseStr <|> parseDoc))
     where
-      parseStr :: Parser (Either String (Int, DocNode))
-      parseStr = Left <$> (char '%' *> many (satisfy (/= '%')) <* char '%')
+      parseStr :: Parser Interp
+      parseStr = IString <$> (srParse $ (char '%' *> many (satisfy (/= '%')) <* char '%'))
 
-      parseDoc :: Parser (Either String (Int, DocNode))
-      parseDoc = Right <$> do
+      parseDoc :: Parser Interp
+      parseDoc = do
         void $ char '$'
         i <- digits
-        d <- parseDocNode
-        return (i, d)
+        d <- parseDocNodeSR
+        return (INode i d)
 
-testParse = parseWithEof parseDocNode
-testParse2 = parseWithEof (srParse parseDocNode)
-
-
+parseStyle :: String -> Either ParseError DocNodeSR
+parseStyle = parseWithEof parseDocNodeSR
