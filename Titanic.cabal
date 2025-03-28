@@ -31,6 +31,7 @@ library
       FLFparser
       Fram
       Lib
+      Parser
       Pretty
       Pretty2
       TextAlign
@@ -41,7 +42,7 @@ library
       src
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports
   build-depends:
-      ansi-terminal ==1.1
+      ansi-terminal
     , base >=4.7 && <5
     , containers
     , mtl
@@ -57,7 +58,7 @@ executable Titanic-exe
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
-    , ansi-terminal ==1.1
+    , ansi-terminal
     , base >=4.7 && <5
     , containers
     , mtl
@@ -74,7 +75,7 @@ test-suite Titanic-test
   ghc-options: -XTypeApplications -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -Wno-x-partial -Wno-incomplete-patterns -Wno-missing-signatures -Wno-unused-matches -Wno-missing-export-lists -Wno-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Titanic
-    , ansi-terminal ==1.1
+    , ansi-terminal
     , base >=4.7 && <5
     , containers
     , mtl

@@ -127,7 +127,7 @@ instance (Fmt a, Fmt b) => Fmt (a, b) where
 
 superFormat = 
   runFmt @[(Int, Int)]
-         "col<yellow><box<col<white><&<s<<d><#<col<red><% = <col<green><box<col<blue><d>>>>>>>>>>>>"
+         "col<yellow><box<col<white><&<s<<d><#<col<red><% -=- <col<green><box<col<blue><d>>>>>>>>>>>>"
          [ (10, 10000000)
          , (2000, 2)
          , (3, 30000)

@@ -213,12 +213,12 @@ ppVec xs = ppString "let " +++ (ppAlignR $ ppStack $ map (\(l, r) -> ppSeq [ppSt
 doubleShift1 = 
   (ppSeq [ ppString "a"
           , ppAlignS (ppString "bbb")
-          , ppString "   "
+          , ppString "===="
           , ppAlignS (ppString "c")])
 
 doubleShift2 =
   (ppSeq [ ppString "aaa"
-          , ppString "     "
+          , ppString "==============="
           , ppAlignS (ppString "b")
           , ppAlignS (ppString "c")])
 
