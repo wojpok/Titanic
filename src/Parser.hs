@@ -4,9 +4,11 @@ module Parser ( StyleValue (..)
               , StyleDict (..)
               , DocNode (..)
               , DocNodeSR (..)
-              , NodeStructure (..)
               , Interp (..)
               , SR (..)
+              , CoreStyle (..)
+              , CoreInterp (..)
+              , desugar
               , parseStyle
               ) where
 
@@ -33,20 +35,16 @@ newtype StyleDict = StyleDict { getStyleDict :: [(String, StyleValue)] }
   deriving Show
 
 data DocNode 
-  = DocNode String (Maybe StyleValue) StyleDict NodeStructure
+  = DocNode String (Maybe StyleValue) StyleDict [Interp]
   deriving Show
 
 newtype DocNodeSR = DocNodeSR { getDocNodeSR :: SR DocNode }
   deriving Show
 
-data NodeStructure 
-  = NSRecs [DocNodeSR]
-  | NSInter [Interp]
-  deriving Show
-
 data Interp
   = IString (SR String)
-  | INode Int DocNodeSR
+  | IENode Int DocNodeSR
+  | INode DocNodeSR
   deriving Show
 
 data SR a 
@@ -122,29 +120,59 @@ parseDocNode = do
     lexoid $ char ':'
     Just <$> parseStyleValue
   style <- option (StyleDict []) parseStyleDict
-  recDoc <- (parseInter <|> parseRecs)
+  recDoc <- parseInter
   lexoid $ char ')'
   return $ DocNode ident immediate style recDoc
 
 parseDocNodeSR :: Parser DocNodeSR
 parseDocNodeSR = DocNodeSR <$> srParse parseDocNode
 
-parseRecs :: Parser NodeStructure
-parseRecs = lexeme $ NSRecs <$> many parseDocNodeSR
-
-parseInter :: Parser NodeStructure
+parseInter :: Parser [Interp]
 parseInter = do
-  NSInter <$> (many1 $ lexeme (try parseStr <|> parseDoc))
+  many $ lexeme (try parseStr <|> parseEDoc <|> parseDoc)
     where
       parseStr :: Parser Interp
       parseStr = IString <$> (srParse $ (char '%' *> many (satisfy (/= '%')) <* char '%'))
 
-      parseDoc :: Parser Interp
-      parseDoc = do
+      parseEDoc :: Parser Interp
+      parseEDoc = do
         void $ char '$'
         i <- digits
         d <- parseDocNodeSR
-        return (INode i d)
+        return (IENode i d)
+
+      parseDoc :: Parser Interp
+      parseDoc = INode <$> parseDocNodeSR
 
 parseStyle :: String -> Either ParseError DocNodeSR
 parseStyle = parseWithEof parseDocNodeSR
+
+data CoreStyle
+  = CoreStyle String StyleDict [CoreInterp]
+  deriving Show
+
+data CoreInterp
+  = CIEnum Int CoreStyle
+  | CINode CoreStyle
+  deriving Show
+
+-- :)
+desugar :: DocNodeSR -> CoreStyle
+desugar (DocNodeSR (S t)) = CoreStyle "shift" (StyleDict []) [CINode $ desugar $ DocNodeSR t]
+desugar (DocNodeSR (R t)) = CoreStyle "reset" (StyleDict []) [CINode $ desugar $ DocNodeSR t]
+desugar (DocNodeSR (E (DocNode name im sty str))) = 
+  CoreStyle name (extStyle im sty) $ map desugarStr str where
+    extStyle :: Maybe StyleValue -> StyleDict -> StyleDict
+    extStyle Nothing x = x
+    extStyle (Just v) x = StyleDict (("im", v) : getStyleDict x)
+
+    desugarStr :: Interp -> CoreInterp
+    desugarStr (INode n) = CINode $ desugar n
+    desugarStr (IENode i n) = CIEnum i $ desugar n
+    desugarStr (IString srStr) = CINode $ desugarSrStr srStr
+
+    desugarSrStr :: SR String -> CoreStyle
+    desugarSrStr (S t) = CoreStyle "shift" (StyleDict []) [CINode $ desugarSrStr t]
+    desugarSrStr (R t) = CoreStyle "reset" (StyleDict []) [CINode $ desugarSrStr t]
+    desugarSrStr (E s) = CoreStyle "string" (StyleDict [("str", SString s)]) []
+
