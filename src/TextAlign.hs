@@ -6,7 +6,6 @@
 
 module TextAlign where
 
-import Pretty
 import Pretty2
 import Types
 
@@ -15,6 +14,8 @@ data Align
   | AJustify
   | ALeft
   | ARight
+
+{-
 
 newtype TextDoc = TextDoc { getTextDoc :: String }
 
@@ -54,15 +55,6 @@ takeLen ws len = iter ws (len + 1) where
       ([], w:ws)
 
 test w l = flip takeLen l $ head $ map words $ paragraphs w
-
-{-
-decidePenalty :: [String] -> AlignConfig -> ([String], [String])
-decidePenalty xs cfg =
-  | not $ elem (last xs) (bannedTrailings cfg) = (xs, [])
-  | otherwise =
-    let rev = revese xs
-        len = sum $ map length xs + length xs - 1
--}
 
 injectSpacesRight :: [String] -> Int -> Line
 injectSpacesRight ws len =
@@ -158,3 +150,4 @@ superFormat4 =
          "lay<10><<d><% = <#<justify>>>>"
          (10, TextDoc $ "Ala ma kota")
 
+-}

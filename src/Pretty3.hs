@@ -108,10 +108,9 @@ instance (Formatable a, Formatable b) => Formatable (a, b) where
     let (CoreStyle _ _ struct) = doc
         mapped = map recf struct
         recf :: CoreInterp -> Err ((a, b) -> Doc) 
-        recf (CIEnum 1 f) = fmt @a  f >>= \fx -> pure (fx . fst)
-        recf (CIEnum 2 f) = fmt @b  f >>= \fx -> pure (fx . snd)
-        recf (CIEnum _ f) = fmt @() f >>= \fx -> pure (fx . const ())
-        recf (CINode f)   = fmt @() f >>= \fx -> pure (fx . const ())
+        recf (CoreInterp 1 f) = fmt @a  f >>= \fx -> pure (fx . fst)
+        recf (CoreInterp 2 f) = fmt @b  f >>= \fx -> pure (fx . snd)
+        recf (CoreInterp _ f) = fmt @() f >>= \fx -> pure (fx . const ())
     fs <- sequence mapped
     return $ \p -> (ppSeq $ fs <*> [p])
 
@@ -167,8 +166,7 @@ testNewFormat2 =
           [(1, 22334), (3324324, 4), (5, 6)]
 
 assertSingle :: CoreStyle -> Err CoreStyle
-assertSingle (CoreStyle _ _ [CINode x]) = Right x
-assertSingle (CoreStyle _ _ [CIEnum _ x]) = Right x
+assertSingle (CoreStyle _ _ [CoreInterp _ x]) = Right x
 assertSingle _ = Left "Arrity mismatch"
 
 fmtLift :: forall a. Formatter a -> Formatter a

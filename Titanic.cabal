@@ -32,7 +32,6 @@ library
       Fram
       Lib
       Parser
-      Pretty
       Pretty2
       Pretty3
       TextAlign

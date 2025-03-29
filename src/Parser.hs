@@ -152,14 +152,13 @@ data CoreStyle
   deriving Show
 
 data CoreInterp
-  = CIEnum Int CoreStyle
-  | CINode CoreStyle
+  = CoreInterp Int CoreStyle
   deriving Show
 
 -- :)
 desugar :: DocNodeSR -> CoreStyle
-desugar (DocNodeSR (S t)) = CoreStyle "shift" (StyleDict []) [CINode $ desugar $ DocNodeSR t]
-desugar (DocNodeSR (R t)) = CoreStyle "reset" (StyleDict []) [CINode $ desugar $ DocNodeSR t]
+desugar (DocNodeSR (S t)) = CoreStyle "shift" (StyleDict []) [CoreInterp 0 $ desugar $ DocNodeSR t]
+desugar (DocNodeSR (R t)) = CoreStyle "reset" (StyleDict []) [CoreInterp 0 $ desugar $ DocNodeSR t]
 desugar (DocNodeSR (E (DocNode name im sty str))) = 
   CoreStyle name (extStyle im sty) $ map desugarStr str where
     extStyle :: Maybe StyleValue -> StyleDict -> StyleDict
@@ -167,12 +166,12 @@ desugar (DocNodeSR (E (DocNode name im sty str))) =
     extStyle (Just v) x = StyleDict (("im", v) : getStyleDict x)
 
     desugarStr :: Interp -> CoreInterp
-    desugarStr (INode n) = CINode $ desugar n
-    desugarStr (IENode i n) = CIEnum i $ desugar n
-    desugarStr (IString srStr) = CINode $ desugarSrStr srStr
+    desugarStr (INode n)       = CoreInterp 0 $ desugar n
+    desugarStr (IENode i n)    = CoreInterp i $ desugar n
+    desugarStr (IString srStr) = CoreInterp 0 $ desugarSrStr srStr
 
     desugarSrStr :: SR String -> CoreStyle
-    desugarSrStr (S t) = CoreStyle "shift" (StyleDict []) [CINode $ desugarSrStr t]
-    desugarSrStr (R t) = CoreStyle "reset" (StyleDict []) [CINode $ desugarSrStr t]
+    desugarSrStr (S t) = CoreStyle "shift" (StyleDict []) [CoreInterp 0 $ desugarSrStr t]
+    desugarSrStr (R t) = CoreStyle "reset" (StyleDict []) [CoreInterp 0 $ desugarSrStr t]
     desugarSrStr (E s) = CoreStyle "string" (StyleDict [("str", SString s)]) []
 
