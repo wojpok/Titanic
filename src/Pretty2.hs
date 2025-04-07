@@ -190,37 +190,41 @@ showDoc d = do
   let (ls, _) = fst $ runState (toLines w 0 d) []
   genLine $ reduceLines $ trColorLine ls
 
-sstest = ppAlignR $ ppAlignS $ ppString "def"                
-                
-stest = ppSeq [ppString "abc", ppAlignS $ ppString "def"]
+inspectDoc :: Doc -> IO ()
+inspectDoc = putStr . showDoc . ppAlignR . makeDoc where
+  makeDoc :: Doc -> Doc  
+  makeDoc (d, w) =
+    makeDTree (\x -> ppSeq [x, showWidth w]) d
 
-test = ppAlignR $ ppStack 
-        [ ppString "abc " +++ ppAlignS (ppString "= 2137" +++ ppAlignS (ppString ": A")) 
-        , ppString "defghi " +++ ppAlignS (ppStack [ppString "= 10" +++ ppAlignS (ppString ": B"), ppString "- 20"])  
-        ]
-                
-testVector = [ ("asdbnashbd", "asdjas")
-             , ("asd", "asdasdasdasdsad")
-             , ("asd", "asd")
-             , ("", "asdasdasdasdddddddddddddddddddddddddddd")
-             , ("sssssssssssssssssssssssssssss", "asdddddddddddddddddd")
-             ]
+  showWidth :: Width -> Doc
+  showWidth (Fixed x) = ppAlignS $ ppString ("  Fixed " ++ show x)
+  showWidth (Shift x y tl) = 
+    ppSeq [ ppAlignS $ ppString ("  Shift " ++ show x ++ " " ++ show y)
+          , showWidth tl
+          ]
 
-ppVec :: [] (String, String) -> Doc
-ppVec xs = ppString "let " +++ (ppAlignR $ ppStack $ map (\(l, r) -> ppSeq [ppString l, ppAlignS $ ppString " := ", ppString r]) xs)
+  ident :: Doc -> Doc
+  ident d = ppSeq [ppString "  ", d]
 
+  makeDTree :: (Doc -> Doc) -> DocTree -> Doc
+  makeDTree i (DEmpty) = i $ ppString "Empty"
+  makeDTree i (DColor c s) = 
+    ppStack [ i $ ppString ("Color " ++ show c), ident $ makeDoc s]
+  makeDTree i (DBox s) =
+    ppStack [ i $ ppString ("Box"), ident $ makeDoc s]
+  makeDTree i (DString s) =
+    i $ ppString $ "String: " ++ show s
+  makeDTree i (DAlignS s) =
+    ppStack [ i $ ppString ("Shift"), ident $ makeDoc s]
+  makeDTree i (DAlignR s) =
+    ppStack [ i $ ppString ("Reset"), ident $ makeDoc s]
+  makeDTree i (DSeq xs) =
+    ppStack $ [i $ ppString "Seq"] ++ map (ident . makeDoc) xs
+  makeDTree i (DStack xs) =
+    ppStack $ [i $ ppString "Stack"] ++ map (ident . makeDoc) xs
+  makeDTree i (DCustom _ _) =
+    i $ ppString "Custom"
 
-doubleShift1 = 
-  (ppSeq [ ppString "a"
-          , ppAlignS (ppString "bbb")
-          , ppString "===="
-          , ppAlignS (ppString "c")])
+testInspect = inspectDoc (ppColor CRed ppEmpty)
 
-doubleShift2 =
-  (ppSeq [ ppString "aaa"
-          , ppString "==============="
-          , ppAlignS (ppString "b")
-          , ppAlignS (ppString "c")])
-
-resetStack = ppAlignR (ppStack [doubleShift1, doubleShift2])
 

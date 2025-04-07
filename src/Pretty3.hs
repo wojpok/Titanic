@@ -153,7 +153,7 @@ makeFmt :: Formatable a => String -> a -> IO ()
 makeFmt style d = do
   case pipe style d of
     Left e -> putStrLn e
-    Right d -> do putStrLn (show d)
+    Right d -> do inspectDoc d
                   putStr $ showDoc d
 
 testNewFormat = 
@@ -197,3 +197,12 @@ testNewFormat2 =
           )
           """
           ((1, 22334), (3324324, 4))
+
+pato :: Doc
+pato = ppAlignR $ ppSeq [ ppStack [ ppShow "aaa"
+                                  , ppSeq [ ppShow "bbbbb"
+                                          , ppAlignS $ ppShow "yyyy"
+                                          ]
+                                  ]
+                        , ppAlignS $ ppShow "x"
+                        ]
