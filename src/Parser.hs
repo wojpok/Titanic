@@ -132,11 +132,10 @@ parseInter = do
   many $ lexeme (try parseStr <|> parseEDoc <|> parseDoc)
     where
       parseStr :: Parser Interp
-      parseStr = IString <$> (srParse $ (char '%' *> many (satisfy (/= '%')) <* char '%'))
+      parseStr = IString <$> (srParse $ (char '\'' *> many (satisfy (/= '\'')) <* char '\''))
 
       parseEDoc :: Parser Interp
       parseEDoc = do
-        void $ char '$'
         i <- digits
         d <- parseDocNodeSR
         return (IENode i d)

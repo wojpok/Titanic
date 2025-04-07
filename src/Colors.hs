@@ -6,6 +6,8 @@
 module Colors where
 
 import qualified System.Console.ANSI as A
+import qualified Control.Concurrent as T
+import Control.Monad
 
 import Types
 
@@ -19,13 +21,6 @@ translateColor c = case c of
   CMagenta -> A.Magenta
   CCyan    -> A.Cyan
   CWhite   -> A.White
-
-readColor :: String -> Color
-readColor "red" = CRed
-readColor "green" = CGreen
-readColor "yellow" = CYellow
-readColor "blue" = CBlue
-readColor _ = CWhite
 
 colorCommandBg :: A.Color -> A.SGR 
 colorCommandBg col = A.SetColor A.Background A.Vivid col
@@ -45,8 +40,20 @@ ansiColor fg bg =
 ansiColorReset :: String
 ansiColorReset = A.setSGRCode [A.Reset] 
 
-testColor :: IO ()
-testColor = do
-  putStr $ ansiColor CRed CGreen 
-  putStr $ "Hello World"
-  putStrLn ansiColorReset
+ansiTest :: IO ()
+ansiTest = do
+  A.useAlternateScreenBuffer
+  Just (x, y) <- A.getTerminalSize
+  A.setSGR [colorCommandBg $ A.Cyan, colorCommandFg A.Red]
+  forM_ [1..x * y] $ const $ do putStr "x"
+
+  A.setSGR [colorCommandBg $ A.Green, colorCommandFg A.Red]
+  A.setCursorPosition 0 0
+  forM_ [1..4] $ do \x -> do putStrLn ("Hello world " ++ show @Int x)
+                             T.threadDelay 500000
+  A.setSGR [colorCommandBg $ A.Green, colorCommandFg A.Yellow]
+  forM_ [1..4] $ do \x -> do putStrLn ("Hello world " ++ show @Int x)
+                             T.threadDelay 500000
+  --Control.Concurrent.threadDelay 5000000
+  A.useNormalScreenBuffer
+

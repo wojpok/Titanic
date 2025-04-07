@@ -25,10 +25,10 @@ import Data.Either
 
 type Err a = Either String a
 
-type Formatter a = CoreStyle -> Err (a -> Doc)
+raise :: String -> Err a
+raise = Left 
 
-instance MonadFail (Either String) where
-  fail = Left
+type Formatter a = CoreStyle -> Err (a -> Doc)
 
 lookupE :: Eq a => a -> [(a, b)] -> Err b
 lookupE _ [] = Left ""
@@ -75,7 +75,7 @@ instance Formatable Int where
     case t of
       "n" -> return (ppShow)
       "x" -> return (ppString . ("0x" ++) . flip showHex "")
-      _ -> fail "Unknown representation"
+      _ -> raise "Unknown representation"
 
 instance Formatable Bool where
   name = const "bool"
@@ -103,7 +103,6 @@ instance Formatable a => Formatable [a] where
 
 instance (Formatable a, Formatable b) => Formatable (a, b) where
   name = const "tuple2"
-  fmt :: (Formatable a, Formatable b) => Formatter (a, b)
   fmt = fmtLift $ \doc -> do
     let (CoreStyle _ _ struct) = doc
         mapped = map recf struct
@@ -148,22 +147,28 @@ testNewFormat =
           [[10, 20, 30], [5000, 50000, 6000]]
 
 testNewFormat2 = 
-  makeFmt @[(Int, Int)]
+  makeFmt @[[(Int, Int)]]
           """
           (color:green
             (box
+              (list:ver {s: ' | '}
               (color:white
                 *(list:hor
                   (tuple2 
-                    % %
-                    $1(int:x) 
-                    &(color:red % = %) 
-                    $1(int) 
-                    &(color:cyan % ; %) 
-                    $2(int)
-                    % %)))))
+                    ' '
+                    1(int:x) 
+                    &(color:red
+                      ' = ') 
+                    1(int) 
+                    (color:cyan 
+                      ' ; ') 
+                    2&(int)
+                    ' '))))))
           """
-          [(1, 22334), (3324324, 4), (5, 6)]
+          [[ (1, 22334)
+           , (3324324, 4)
+           , (5, 6) ]
+          ,[ (2, 50)]]
 
 assertSingle :: CoreStyle -> Err CoreStyle
 assertSingle (CoreStyle _ _ [CoreInterp _ x]) = Right x
@@ -186,3 +191,4 @@ fmtLift cont c@(CoreStyle name sty struct) =
     "string" -> do text <- getSStrI "str" c
                    return $ const $ ppString text
     _ -> cont c
+

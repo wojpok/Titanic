@@ -24,7 +24,7 @@ data Line
   | LChar Char
   | LConcat Line Line
   | LAlignLeft Line
-  | LFill Char (Maybe Int)
+  | LFill String Int
   | LEmpty
   | LColor Color
   | LColorPop 

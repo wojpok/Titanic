@@ -20,12 +20,10 @@ ppString str = (DString str, fixedWidth $ length str)
 ppShow :: Show a => a -> Doc
 ppShow = ppString . show
 
-{-
-ppEither :: Doc -> Doc -> Doc
-ppEither d1@(t1, wb1, s1, wa1) d2@(t2, wb2, s2, wa2) 
-    | wa1 + wb1 < wa2 + wb2     = (DEither d1 d2, wb1, s1, wa1)
-    | otherwise                 = (DEither d1 d2, wb2, s2, wa2)
--}
+ppGroup :: Doc -> Doc -> Doc
+ppGroup d1 d2@(_, w2) = 
+  let d1'@(_, w1) = ppAlignR d1
+  in (DEither d1' d2, stackWidth w1 w2)
 
 ppAlignR :: Doc -> Doc
 ppAlignR d@(doc, w) = (DAlignR d, resetWidth w)
@@ -86,11 +84,10 @@ genLine line = iter line [] where
   iter (LChar ch) acc = ch:acc
   iter (LConcat s1 s2) acc = iter s1 (iter s2 acc)
   iter (LAlignLeft str) acc = iter str acc
-  iter (LFill ch Nothing) acc = acc
-  iter (LFill ch (Just n)) acc = iter' n ch acc where
+  iter (LFill ch n) acc = iter' n ch acc where
     iter' n ch acc
         | n <= 0    = acc
-        | otherwise = iter' (n - 1) ch (ch:acc)
+        | otherwise = iter' (n - 1) ch (ch ++ acc)
   iter LEmpty acc = acc
 
 reduceLines :: [Line] -> Line
@@ -99,8 +96,8 @@ reduceLines (l:ls) = LConcat l (LConcat (LChar '\n') $ reduceLines ls)
 
 linesFill :: Int -> Int -> [Line] -> [Line] -> [Line]
 linesFill sl sr (l:ls) (r:rs) = LConcat l r : linesFill sl sr ls rs
-linesFill sl sr [] (r:rs) = LConcat (LFill ' ' $ Just sl) r : linesFill sl sr [] rs
-linesFill sl sr (l:ls) [] = LConcat l (LFill ' ' $ Just sr) : linesFill sl sr ls []
+linesFill sl sr [] (r:rs) = LConcat (LFill " " sl) r : linesFill sl sr [] rs
+linesFill sl sr (l:ls) [] = LConcat l (LFill " " sr) : linesFill sl sr ls []
 linesFill _ _ [] [] = []
 
 alignDoc :: Int -> CtxBox -> CtxBox 
@@ -108,7 +105,7 @@ alignDoc target c@(xs, current)
   | target == current = c
   | otherwise = (, target) $ do
     x <- xs
-    return (LConcat x (LFill ' ' (Just (target - current))))
+    return (LConcat x (LFill " " (target - current)))
 
 {-
 - Każdy element dostaje przydział szerokości
@@ -177,10 +174,11 @@ toLines size offset (d, w) = do
       return (map (\l -> LConcat (LColor col) (LConcat l LColorPop)) lines, w)
     DBox doc -> do
       (lines, w) <- toLines (size - 2) (offset + 1) doc
-      let mapped = map (\l -> LConcat (LChar '#') (LConcat l (LChar '#'))) lines
-          w' = w + 2
-      return ([LFill '#' (Just w')]  ++ mapped ++ [LFill '#' (Just w')], w')
-    -- DEither doc1 doc2 -> undefined
+      let mapped = map (\l -> LConcat (LString "│") (LConcat l (LString "│"))) lines
+          topLine    = (LConcat (LString "╭") (LConcat (LFill "─" w) (LString "╮")))
+          bottomLine = (LConcat (LString "╰") (LConcat (LFill "─" w) (LString "╯")))
+      return ([topLine]  ++ mapped ++ [bottomLine], w + 2)
+    DEither doc1 doc2 -> undefined
     --DLayout size' doc -> toLines size' off doc
     --DCustom d cont -> cont size off d
 -- toLines = undefined
