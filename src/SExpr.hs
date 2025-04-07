@@ -6,6 +6,3 @@ data SE
   = SL [SE]
   | ST String
 
-
-borderChars :: String
-borderChars = "─│╭╮╰╯├┬┼┴┤"

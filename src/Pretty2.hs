@@ -7,6 +7,7 @@ import Control.Monad.State
 import Depth
 import Colors
 import Types
+import System.IO.Unsafe
 
 getWidth :: Doc -> Width
 getWidth = snd
@@ -180,12 +181,13 @@ toLines size offset (d, w) = do
       return ([topLine]  ++ mapped ++ [bottomLine], w + 2)
     DEither doc1 doc2 -> undefined
     --DLayout size' doc -> toLines size' off doc
-    --DCustom d cont -> cont size off d
+    DCustom d cont -> return $ cont size offset d
 -- toLines = undefined
 
 showDoc :: Doc -> String
 showDoc d = do
-  let (ls, _) = fst $ runState (toLines 0 0 d) []
+  let w = width $ snd d
+  let (ls, _) = fst $ runState (toLines w 0 d) []
   genLine $ reduceLines $ trColorLine ls
 
 sstest = ppAlignR $ ppAlignS $ ppString "def"                

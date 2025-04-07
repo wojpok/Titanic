@@ -59,6 +59,8 @@ data DocTree
 
 instance Show DocTree where
   show DEmpty        = "(Empty)"
+  show (DColor c s)  = "(Color "  ++ show s ++ ")"
+  show (DBox s)      = "(Box "    ++ show s ++ ")"
   show (DString s)   = "(String " ++ show s ++ ")"
   show (DAlignS d)   = "(Shift "  ++ show d ++ ")"
   show (DAlignR d)   = "(Reset "  ++ show d ++ ")"

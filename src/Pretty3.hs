@@ -17,6 +17,7 @@ import Numeric (showHex)
 import Pretty2
 import Depth
 import Colors
+import Borders
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -60,6 +61,29 @@ alter :: Err a -> Err a -> Err a
 alter (Right x) _ = Right x
 alter _ r = r
 
+assertSingle :: CoreStyle -> Err CoreStyle
+assertSingle (CoreStyle _ _ [CoreInterp _ x]) = Right x
+assertSingle _ = Left "Arrity mismatch"
+
+fmtLift :: forall a. Formatter a -> Formatter a
+fmtLift cont c@(CoreStyle name sty struct) =
+  case name of
+    "box" -> do tl <- assertSingle c
+                fmt <- fmtLift cont tl
+                return (ppBox . fmt)
+    "color" -> do tl <- assertSingle c
+                  col <- getSColI "col" c
+                  fmt <- fmtLift cont tl
+                  return (ppColor col . fmt)
+    "shift" -> do tl <- assertSingle c
+                  (ppAlignS .) <$> fmtLift cont tl
+    "reset" -> do tl <- assertSingle c
+                  (ppAlignR .) <$> fmtLift cont tl
+    "string" -> do text <- getSStrI "str" c
+                   return $ const $ ppString text
+    "line" -> return $ const $ ppHLine
+    _ -> cont c
+
 class Formatable a where
   name :: a -> String
   fmt :: Formatter a
@@ -90,16 +114,16 @@ instance Formatable Bool where
 instance Formatable a => Formatable [a] where
   name = const "list"
   fmt = fmtLift $ \doc -> do
-    t <- getSStrI "orient" doc `alter` pure "hor"
+    t <- getSStrI "orient" doc `alter` pure "ver"
     r <- assertSingle doc
     fmtRec <- fmt r
     case t of
-      "ver" -> do spacing <- getSStr "s" doc `alter` pure ""
+      "hor" -> do spacing <- getSStr "s" doc `alter` pure ""
                   return (ppSeq . interleave spacing . map fmtRec) where
                     interleave spacing [] = []
                     interleave spacing [x] = [x]
                     interleave spacing (x:xs) = (x : ppString spacing : interleave spacing xs)
-      "hor" -> return (ppStack . map fmtRec)
+      "ver" -> return (ppStack . map fmtRec)
 
 instance (Formatable a, Formatable b) => Formatable (a, b) where
   name = const "tuple2"
@@ -110,9 +134,11 @@ instance (Formatable a, Formatable b) => Formatable (a, b) where
         recf (CoreInterp 1 f) = fmt @a  f >>= \fx -> pure (fx . fst)
         recf (CoreInterp 2 f) = fmt @b  f >>= \fx -> pure (fx . snd)
         recf (CoreInterp _ f) = fmt @() f >>= \fx -> pure (fx . const ())
+    orient <- getSStrI "orient" doc `alter` pure "hor" 
     fs <- sequence mapped
-    return $ \p -> (ppSeq $ fs <*> [p])
-
+    case orient of
+      "hor" -> return $ \p -> (ppSeq $ fs <*> [p])
+      "ver" -> return $ \p -> (ppStack $ fs <*> [p])
 
 pipe :: Formatable a => String -> a -> Err Doc
 pipe style d = do
@@ -127,7 +153,8 @@ makeFmt :: Formatable a => String -> a -> IO ()
 makeFmt style d = do
   case pipe style d of
     Left e -> putStrLn e
-    Right d -> putStr $ showDoc d
+    Right d -> do putStrLn (show d)
+                  putStr $ showDoc d
 
 testNewFormat = 
   makeFmt @[[Int]]
@@ -147,48 +174,26 @@ testNewFormat =
           [[10, 20, 30], [5000, 50000, 6000]]
 
 testNewFormat2 = 
-  makeFmt @[[(Int, Int)]]
+  makeFmt @((Int, Int), (Int, Int))
           """
-          (color:green
+          *(color:red
             (box
-              (list:ver {s: ' | '}
               (color:white
-                *(list:hor
-                  (tuple2 
+                (tuple2:ver
+                  1(tuple2:hor
+                    1(int)
                     ' '
-                    1(int:x) 
-                    &(color:red
-                      ' = ') 
-                    1(int) 
-                    (color:cyan 
-                      ' ; ') 
                     2&(int)
-                    ' '))))))
+                  )
+                  (color:red (line))
+                  2(tuple2:hor
+                    1(int)
+                    ' '
+                    2&(int)
+                  )
+                )
+              )
+            )
+          )
           """
-          [[ (1, 22334)
-           , (3324324, 4)
-           , (5, 6) ]
-          ,[ (2, 50)]]
-
-assertSingle :: CoreStyle -> Err CoreStyle
-assertSingle (CoreStyle _ _ [CoreInterp _ x]) = Right x
-assertSingle _ = Left "Arrity mismatch"
-
-fmtLift :: forall a. Formatter a -> Formatter a
-fmtLift cont c@(CoreStyle name sty struct) =
-  case name of
-    "box" -> do tl <- assertSingle c
-                fmt <- fmtLift cont tl
-                return (ppBox . fmt)
-    "color" -> do tl <- assertSingle c
-                  col <- getSColI "col" c
-                  fmt <- fmtLift cont tl
-                  return (ppColor col . fmt)
-    "shift" -> do tl <- assertSingle c
-                  (ppAlignS .) <$> fmtLift cont tl
-    "reset" -> do tl <- assertSingle c
-                  (ppAlignR .) <$> fmtLift cont tl
-    "string" -> do text <- getSStrI "str" c
-                   return $ const $ ppString text
-    _ -> cont c
-
+          ((1, 22334), (3324324, 4))
