@@ -188,7 +188,13 @@ toLines size offset (Doc d w) = do
     DEither doc1 doc2 -> undefined
     DLayout size' doc -> toLines size' offset doc
     DCustom d cont -> return $ cont size offset d
-    DFlex flex d -> toLines size offset d
+    DFlex flex d -> do 
+      (lines, size') <- toLines size offset d
+      if size' >= size then
+        return (lines, size')
+      else do
+        let remaining = min flex (size - size')
+        return (map (LConcat (LFill " " remaining)) lines, size' + remaining)
 -- toLines = undefined
 
 showDoc :: Doc -> String

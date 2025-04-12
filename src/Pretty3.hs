@@ -201,13 +201,15 @@ testNewFormat2 =
               (color:white
                 (tuple2:ver
                   1(tuple2:hor
+                    (flex:5 '')
                     1(int)
                     ' '
                     2&(int)
+                    (flex:5 '')
                   )
                   (color:red (line))
                   2(tuple2:hor
-                    1(flex:10 (int))
+                    1(flex:5 (int))
                     ' '
                     2&(int)
                   )
