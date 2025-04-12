@@ -47,6 +47,16 @@ getSStr ident (CoreStyle _ sty _) = do
 getSStrI :: String -> CoreStyle -> Err String
 getSStrI ident n = getSStr "im" n `alter` getSStr ident n
 
+getSInt :: String -> CoreStyle -> Err Int
+getSInt ident (CoreStyle _ sty _) = do
+  v <- lookupE ident (getStyleDict sty)
+  case v of
+    SInt s -> return s
+    _ -> Left "Expected Int" 
+
+getSIntI :: String -> CoreStyle -> Err Int
+getSIntI ident n = getSInt "im" n `alter` getSInt ident n
+
 getSCol :: String -> CoreStyle -> Err Color 
 getSCol ident (CoreStyle _ sty _) = do
   v <- lookupE ident (getStyleDict sty)
@@ -82,6 +92,15 @@ fmtLift cont c@(CoreStyle name sty struct) =
     "string" -> do text <- getSStrI "str" c
                    return $ const $ ppString text
     "line" -> return $ const $ ppHLine
+    "flex" -> do tl <- assertSingle c
+                 flex <- getSIntI "w" c
+                 fmt <- fmtLift cont tl
+                 return (ppFlex flex . fmt)
+    "lay" -> do tl <- assertSingle c
+                flex <- getSIntI "w" c
+                fmt <- fmtLift cont tl
+                return (ppLayout flex . fmt)
+      
     _ -> cont c
 
 class Formatable a where
@@ -176,6 +195,7 @@ testNewFormat =
 testNewFormat2 = 
   makeFmt @((Int, Int), (Int, Int))
           """
+          (lay:40
           *(color:red
             (box
               (color:white
@@ -187,13 +207,14 @@ testNewFormat2 =
                   )
                   (color:red (line))
                   2(tuple2:hor
-                    1(int)
+                    1(flex:10 (int))
                     ' '
                     2&(int)
                   )
                 )
               )
             )
+          )
           )
           """
           ((1, 22334), (3324324, 4))

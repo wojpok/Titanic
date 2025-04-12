@@ -44,13 +44,16 @@ ppStack xs =
   in Doc (DStack xs) w
 
 ppLayout :: Int -> Doc -> Doc
-ppLayout l d@(Doc _ w) = Doc (DLayout l d) $ w 
+ppLayout l d@(Doc _ w) = Doc (DLayout l d) $ fixedWidth l
 
 ppColor :: Color -> Doc -> Doc
 ppColor c d@(Doc _ w) = Doc (DColor c d) $ w
 
 ppBox :: Doc -> Doc
 ppBox d@(Doc _ w) = Doc (DBox d) $ extWidth 1 $ backExtWidth 1 w
+
+ppFlex :: Int -> Doc -> Doc
+ppFlex w d@(Doc _ s) = Doc (DFlex w d) $ addFlexWidth w s
 
 (<+>) :: Doc -> Doc -> Doc
 (<+>) l r = ppSeq [l, r]
@@ -155,10 +158,10 @@ toLines size offset (Doc d w) = do
       let ls = linesFill missingShift ts [] tl
       return (ls, (missingShift + ts)) 
     DAlignR doc -> do
-      let shifts = shiftAllocation Sparse $ shiftList $ getWidth doc
+      let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
       shiftBt $ do
         put shifts
-        toLines size 0 doc
+        toLines (sum shifts) 0 doc
     DSeq ds -> do
       iter size offset ds where
         iter :: Int -> Int -> [Doc] -> ShiftState CtxBox
@@ -183,13 +186,14 @@ toLines size offset (Doc d w) = do
           bottomLine = (LConcat (LString "╰") (LConcat (LFill "─" w) (LString "╯")))
       return ([topLine]  ++ mapped ++ [bottomLine], w + 2)
     DEither doc1 doc2 -> undefined
-    --DLayout size' doc -> toLines size' off doc
+    DLayout size' doc -> toLines size' offset doc
     DCustom d cont -> return $ cont size offset d
+    DFlex flex d -> toLines size offset d
 -- toLines = undefined
 
 showDoc :: Doc -> String
 showDoc d = do
-  let w = minWidth $ width $ getWidth d
+  let w = maxWidth $ width $ getWidth d
   let (ls, _) = fst $ runState (toLines w 0 d) []
   genLine $ reduceLines $ trColorLine ls
 
@@ -225,6 +229,10 @@ inspectDoc = putStr . showDoc . ppAlignR . makeDoc where
     ppStack $ [i $ ppString "Seq"] ++ map (ident . makeDoc) xs
   makeDTree i (DStack xs) =
     ppStack $ [i $ ppString "Stack"] ++ map (ident . makeDoc) xs
+  makeDTree i (DFlex n d) =
+    ppStack $ [i $ ppString ("Flex " ++ show n), ident $ makeDoc d]
+  makeDTree i (DLayout n d) =
+    ppStack $ [i $ ppString ("Lay " ++ show n), ident $ makeDoc d]
   makeDTree i (DCustom _ _) =
     i $ ppString "Custom"
 
