@@ -8,5 +8,5 @@ borderChars :: String
 borderChars = "─│╭╮╰╯├┬┼┴┤"
 
 ppHLine :: Doc
-ppHLine = (DCustom () $ \size o _ -> ([LFill "─" size], size), fixedWidth 0)
+ppHLine = Doc (DCustom () $ \size o _ -> ([LFill "─" size], size)) $ fixedWidth 0
 

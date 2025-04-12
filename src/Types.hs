@@ -30,19 +30,20 @@ data Line
   | LColorPop 
   deriving (Show, Eq, Ord)
 
-type Doc = (DocTree, Width)
+data Doc = Doc DocTree Width
+  deriving Show
 
 class DocConfCustom a c | a -> c where
   confDocLines :: c -> Int -> Int -> a -> CtxBox
 
 ppConfCustom :: DocConfCustom a c => c -> a -> Doc
-ppConfCustom conf x = (DCustom x (confDocLines conf), fixedWidth 0)
+ppConfCustom conf x = Doc (DCustom x (confDocLines conf)) $ fixedWidth 0
 
 class DocCustom a where
   docLines :: Int -> Int -> a -> CtxBox
 
 ppCustom :: DocCustom a => a -> Doc
-ppCustom x = (DCustom x docLines, fixedWidth 0)
+ppCustom x = Doc (DCustom x docLines) $ fixedWidth 0
 
 data DocTree 
   = DEmpty

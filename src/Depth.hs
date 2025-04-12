@@ -1,22 +1,64 @@
 module Depth where
 
+{-
+Algorytm przydziału miejsca
+- pudełka definiują swoją rozszerzalność (skala u-intowa)
+- zapamiętujemy maksymaloną sumaryczną rozszerzalność między shiftami
+- reset będzie mógł prydzielić miejsce w dwóch strategiach
+  -> minimalnej (ściśniętej - tak jak teraz) - ignoruje rozszerzalność i bierze minimum
+  -> rozwiniętej - alokuje pozycjonowanie shiftów proporcjonalnie do deklarowanej rozszerzalności
+     między shiftami
+-}
+
+
+type MinWidth = Int
+type MaxWidth = Int
+type WScaling = Int
+
+data Scale = Scale MinWidth MaxWidth WScaling
+  deriving (Show)
+
+instance Num Scale where
+  (Scale x y z) + (Scale a b c) = Scale (x + a) (y + b) (z + c)
+  (-) = undefined
+  (*) = undefined
+  signum _ = 0
+  fromInteger = undefined
+  abs = id
+
+instance Eq Scale where
+  (Scale x _ _) == (Scale x' _ _) = x == x'
+
+instance Ord Scale where
+  (Scale x _ _) <= (Scale x' _ _) = x <= x'
+
 data Width
-  = Shift Int Int Width
-  | Fixed Int
+  = Shift Scale Scale Width
+  | Fixed Scale
   deriving (Show, Eq, Ord)
 
+data Spread
+  = Sparse
+  | Float
+
+fixedScale :: Int -> Scale
+fixedScale x = Scale x x 0
+
 fixedWidth :: Int -> Width
-fixedWidth = Fixed
+fixedWidth = Fixed . fixedScale 
 
 shiftWidth :: Width -> Width
-shiftWidth = Shift 0 0
+shiftWidth = Shift (Scale 0 0 0) (Scale 0 0 0)
 
 resetWidth :: Width -> Width
-resetWidth = fixedWidth . width
+resetWidth = Fixed . width
 
-width :: Width -> Int
+width :: Width -> Scale
 width (Fixed f) = f
 width (Shift f b tl) = max b (f + width tl)
+
+minWidth :: Scale -> Int
+minWidth (Scale m _ _) = m
 
 seqWidth :: Width -> Width -> Width
 seqWidth (Fixed f) (Fixed f') = Fixed (f + f')
@@ -30,17 +72,20 @@ stackWidth (Shift f b tl) (Shift f' b' tl') = Shift (max f f') (max b b') (stack
 stackWidth (Shift f b tl) (Fixed f') = Shift f (max b f') tl
 
 extWidth :: Int -> Width -> Width
-extWidth w (Fixed f) = Fixed (w + f)
-extWidth w (Shift f b tl) = Shift (f + w) (b + w) tl
+extWidth w (Fixed f) = Fixed (fixedScale w + f)
+extWidth w (Shift f b tl) = Shift (f + fixedScale w) (b + fixedScale w) tl
 
 backExtWidth :: Int -> Width -> Width
-backExtWidth w (Fixed f) = Fixed (w + f)
-backExtWidth w (Shift f b tl) = Shift f (b + w) (backExtWidth w tl)
+backExtWidth w (Fixed f) = Fixed (fixedScale w + f)
+backExtWidth w (Shift f b tl) = Shift f (b + fixedScale w) (backExtWidth w tl)
 
 shiftCount :: Width -> Int
 shiftCount (Fixed _) = 0
 shiftCount (Shift _ _  tl) = 1 + shiftCount tl
 
-shiftList :: Width -> [Int]
+shiftList :: Width -> [Scale]
 shiftList (Fixed _) = []
 shiftList (Shift f _ tl) = f : shiftList tl
+
+shiftAllocation :: Spread -> [Scale] -> [Int]
+shiftAllocation Sparse scales = map minWidth scales

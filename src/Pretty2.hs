@@ -10,50 +10,53 @@ import Types
 import System.IO.Unsafe
 
 getWidth :: Doc -> Width
-getWidth = snd
+getWidth (Doc _ snd) = snd
 
 ppEmpty :: Doc
-ppEmpty = (DEmpty, fixedWidth 0)
+ppEmpty = Doc DEmpty $ fixedWidth 0
 
 ppString :: String -> Doc
-ppString str = (DString str, fixedWidth $ length str)
+ppString str = Doc (DString str) $ fixedWidth $ length str
 
 ppShow :: Show a => a -> Doc
 ppShow = ppString . show
 
 ppGroup :: Doc -> Doc -> Doc
-ppGroup d1 d2@(_, w2) = 
-  let d1'@(_, w1) = ppAlignR d1
-  in (DEither d1' d2, stackWidth w1 w2)
+ppGroup d1 d2@(Doc _ w2) = 
+  let d1'@(Doc _ w1) = ppAlignR d1
+  in Doc (DEither d1' d2) $ stackWidth w1 w2
 
 ppAlignR :: Doc -> Doc
-ppAlignR d@(doc, w) = (DAlignR d, resetWidth w)
+ppAlignR d@(Doc doc w) = Doc (DAlignR d) $ resetWidth w
 
 ppAlignS :: Doc -> Doc 
-ppAlignS d@(doc, w) = (DAlignS d, shiftWidth w)
+ppAlignS d@(Doc doc w) = Doc (DAlignS d) $ shiftWidth w
 
 ppSeq :: [Doc] -> Doc
-ppSeq xs = (DSeq xs, iter xs) where
+ppSeq xs = Doc (DSeq xs) $ iter xs where
     iter :: [Doc] -> Width
     iter [] = fixedWidth 0
     iter (d:ds) = seqWidth (getWidth d) (iter ds)
     
 ppStack :: [Doc] -> Doc
 ppStack xs = 
-  let w = foldr (stackWidth . snd) (fixedWidth 0) xs
-  in (DStack xs, w)
+  let w = foldr (stackWidth . getWidth) (fixedWidth 0) xs
+  in Doc (DStack xs) w
 
 ppLayout :: Int -> Doc -> Doc
-ppLayout l d@(_, w) = (DLayout l d, w) 
+ppLayout l d@(Doc _ w) = Doc (DLayout l d) $ w 
 
 ppColor :: Color -> Doc -> Doc
-ppColor c d@(_, w) = (DColor c d, w)
+ppColor c d@(Doc _ w) = Doc (DColor c d) $ w
 
 ppBox :: Doc -> Doc
-ppBox d@(_, w) = (DBox d, extWidth 1 $ backExtWidth 1 w)
+ppBox d@(Doc _ w) = Doc (DBox d) $ extWidth 1 $ backExtWidth 1 w
 
-(+++) :: Doc -> Doc -> Doc
-(+++) l r = ppSeq [l, r]
+(<+>) :: Doc -> Doc -> Doc
+(<+>) l r = ppSeq [l, r]
+
+(/+/) :: Doc -> Doc -> Doc 
+(/+/) l r = ppStack [l, r]
 
 pushCol :: Color -> State [Color] ()
 pushCol c = do xs <- get
@@ -140,8 +143,8 @@ shiftBt m = do st <- get
                return res
 
 toLines :: Int -> Int -> Doc -> ShiftState CtxBox
-toLines size offset (d, w) = do
-  let totWidth = width w
+toLines size offset (Doc d w) = do
+  let totWidth = minWidth $ width w
   case d of
     DEmpty ->      return ([LEmpty], 0)
     DString str -> return ([LString str], totWidth)
@@ -152,7 +155,7 @@ toLines size offset (d, w) = do
       let ls = linesFill missingShift ts [] tl
       return (ls, (missingShift + ts)) 
     DAlignR doc -> do
-      let shifts = shiftList $ getWidth doc
+      let shifts = shiftAllocation Sparse $ shiftList $ getWidth doc
       shiftBt $ do
         put shifts
         toLines size 0 doc
@@ -160,7 +163,7 @@ toLines size offset (d, w) = do
       iter size offset ds where
         iter :: Int -> Int -> [Doc] -> ShiftState CtxBox
         iter size off [] = return ([], 0)
-        iter size off (d@(_, w):ds) = do
+        iter size off (d@(Doc _ w):ds) = do
           (os, o) <- toLines size off d 
           (ts, size') <- iter (size - o) (off + o) ds
           let lines = linesFill o size' os ts
@@ -186,14 +189,14 @@ toLines size offset (d, w) = do
 
 showDoc :: Doc -> String
 showDoc d = do
-  let w = width $ snd d
+  let w = minWidth $ width $ getWidth d
   let (ls, _) = fst $ runState (toLines w 0 d) []
   genLine $ reduceLines $ trColorLine ls
 
 inspectDoc :: Doc -> IO ()
 inspectDoc = putStr . showDoc . ppAlignR . makeDoc where
   makeDoc :: Doc -> Doc  
-  makeDoc (d, w) =
+  makeDoc (Doc d w) =
     makeDTree (\x -> ppSeq [x, showWidth w]) d
 
   showWidth :: Width -> Doc
