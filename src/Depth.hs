@@ -68,6 +68,10 @@ width :: Width -> Scale
 width (Fixed f) = f
 width (Shift f b tl) = maxS b (f + width tl)
 
+singleScale :: Width -> Scale
+singleScale (Fixed f) = f
+singleScale (Shift f _ _) = f
+
 minWidth :: Scale -> Int
 minWidth (Scale m _) = m
 
@@ -124,4 +128,19 @@ shiftAllocation Float max scales =
   else 
     let res = allocate leftover $ zipWith (\x y -> (x + avgSpend * y, y)) mins scs
     in res
- 
+
+populateSpreadState :: Int -> Scale -> (Int, Int)
+populateSpreadState size (Scale fixed float)
+  | extra <= 0 = (0, 0)
+  | float == 0 = (0, 0)
+  | otherwise  = (perPoint, overflow)
+    where
+      extra    = size - fixed
+      perPoint = extra `div` float
+      overflow = extra - perPoint * float
+
+assignSpreadState :: Int -> (Int, Int) -> (Int, (Int, Int))
+assignSpreadState float (perPoint, overflow) =
+  let over = min perPoint overflow
+      size = float * perPoint + over
+  in (size, (perPoint, overflow - over))

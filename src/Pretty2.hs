@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, Strict #-}
 
 module Pretty2 where
 
@@ -137,6 +137,12 @@ getShifts = return . snd =<< get
 putShifts :: [Int] -> ShiftState ()
 putShifts xs = modify $ \(x, _) -> (x, xs)
 
+getSpread :: ShiftState (Int, Int)
+getSpread = return . fst =<< get
+
+putSpread :: (Int, Int) -> ShiftState ()
+putSpread p = modify $ \(_, xs) -> (p, xs)
+
 pop :: ShiftState Int
 pop = do xs <- getShifts
          putShifts $ sumFst xs
@@ -159,12 +165,15 @@ toLines size offset (Doc d w) = do
     DString str -> return ([LString str], totWidth)
     DAlignS doc -> do
       shift <- pop
+      nextShift <- shiftBt $ pop
+      putSpread $ populateSpreadState (nextShift - shift) (singleScale $ getWidth doc)
       let missingShift = shift - offset
       (tl, ts) <- toLines (size - missingShift) (offset + missingShift) doc
       let ls = linesFill missingShift ts [] tl
       return (ls, (missingShift + ts)) 
     DAlignR doc -> do
       let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
+      putSpread $ populateSpreadState (head shifts - offset) (singleScale $ getWidth doc)
       shiftBt $ do
         putShifts shifts
         toLines (sum shifts) 0 doc
@@ -194,8 +203,11 @@ toLines size offset (Doc d w) = do
     DEither doc1 doc2 -> undefined
     DLayout size' doc -> toLines size' offset doc
     DCustom d cont -> return $ cont size offset d
-    DFlex flex -> return $ ([LFill " " 1], 1)
--- toLines = undefined
+    DFlex flex -> do
+      spread <- getSpread
+      let (size, spread') = assignSpreadState flex spread
+      putSpread spread'
+      return $ ([LFill " " size], size)
 
 showDoc :: Doc -> String
 showDoc d = do
