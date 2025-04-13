@@ -92,10 +92,8 @@ fmtLift cont c@(CoreStyle name sty struct) =
     "string" -> do text <- getSStrI "str" c
                    return $ const $ ppString text
     "line" -> return $ const $ ppHLine
-    "flex" -> do tl <- assertSingle c
-                 flex <- getSIntI "w" c
-                 fmt <- fmtLift cont tl
-                 return (ppFlex flex . fmt)
+    "flex" -> do flex <- getSIntI "w" c
+                 return (const $ ppFlex flex)
     "lay" -> do tl <- assertSingle c
                 flex <- getSIntI "w" c
                 fmt <- fmtLift cont tl
@@ -201,15 +199,17 @@ testNewFormat2 =
               (color:white
                 (tuple2:ver
                   1(tuple2:hor
-                    (flex:5 '')
+                    (flex:5)
                     1(int)
+                    (flex:5)
                     ' '
                     2&(int)
-                    (flex:5 '')
+                    (flex:5)
                   )
                   (color:red (line))
                   2(tuple2:hor
-                    1(flex:5 (int))
+                    (flex:5)
+                    1(int)
                     ' '
                     2&(int)
                   )

@@ -14,42 +14,42 @@ Algorytm przydziału miejsca
 
 
 type MinWidth = Int
-type MaxWidth = Int
 type WScaling = Int
 
-data Scale = Scale MinWidth MaxWidth WScaling
+data Scale = Scale MinWidth WScaling
+  deriving (Eq)
 
 instance Show Scale where
-  show (Scale x y z) = "(" ++ show x ++ "-" ++ show y ++ " " ++ show z ++ ")"
+  show (Scale x y) = "(" ++ show x ++ "-" ++ show y ++ ")"
 
 instance Num Scale where
-  (Scale x y z) + (Scale a b c) = Scale (x + a) (y + b) (z + c)
+  (Scale x y) + (Scale a b) = Scale (x + a) (y + b)
   (-) = undefined
   (*) = undefined
   signum _ = 0
   fromInteger = undefined
   abs = id
 
-instance Eq Scale where
-  (Scale x _ _) == (Scale x' _ _) = x == x'
-
-instance Ord Scale where
-  (Scale x _ _) <= (Scale x' _ _) = x <= x'
-
 data Width
   = Shift Scale Scale Width
   | Fixed Scale
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data Spread
   = Sparse
   | Float
 
+maxS :: Scale -> Scale -> Scale
+maxS (Scale a b) (Scale x y) = Scale (max a x) (max b y)
+
+minS :: Scale -> Scale -> Scale
+minS (Scale a b) (Scale x y) = Scale (min a x) (min b y)
+
 fixedScale :: Int -> Scale
-fixedScale x = Scale x x 0
+fixedScale x = Scale x 0
 
 flexScale :: Int -> Scale
-flexScale y = Scale 0 y 1
+flexScale y = Scale 0 y 
 
 fixedWidth :: Int -> Width
 fixedWidth = Fixed . fixedScale 
@@ -59,23 +59,20 @@ addFlexWidth f (Fixed s) = Fixed (s + flexScale f)
 addFlexWidth f (Shift s1 s2 tl) = Shift (flexScale f + s1) (flexScale f + s2) tl
 
 shiftWidth :: Width -> Width
-shiftWidth = Shift (Scale 0 0 0) (Scale 0 0 0)
+shiftWidth = Shift (Scale 0 0) (Scale 0 0)
 
 resetWidth :: Width -> Width
 resetWidth = Fixed . width
 
 width :: Width -> Scale
 width (Fixed f) = f
-width (Shift f b tl) = max b (f + width tl)
+width (Shift f b tl) = maxS b (f + width tl)
 
 minWidth :: Scale -> Int
-minWidth (Scale m _ _) = m
-
-maxWidth :: Scale -> Int
-maxWidth (Scale _ m _) = m
+minWidth (Scale m _) = m
 
 scaleWidth :: Scale -> Int
-scaleWidth (Scale _ _ s) = s
+scaleWidth (Scale _ s) = s
 
 seqWidth :: Width -> Width -> Width
 seqWidth (Fixed f) (Fixed f') = Fixed (f + f')
@@ -83,10 +80,10 @@ seqWidth (Fixed f) (Shift f' b' tl) = Shift (f + f') (f + b') tl
 seqWidth (Shift f b tl) w = Shift f b (seqWidth tl w) 
 
 stackWidth :: Width -> Width -> Width
-stackWidth (Fixed f) (Fixed f') = Fixed (max f f')
-stackWidth (Fixed f) (Shift f' b' tl') = Shift f' (max f b') tl'
-stackWidth (Shift f b tl) (Shift f' b' tl') = Shift (max f f') (max b b') (stackWidth tl tl')
-stackWidth (Shift f b tl) (Fixed f') = Shift f (max b f') tl
+stackWidth (Fixed f) (Fixed f') = Fixed (maxS f f')
+stackWidth (Fixed f) (Shift f' b' tl') = Shift f' (maxS f b') tl'
+stackWidth (Shift f b tl) (Shift f' b' tl') = Shift (maxS f f') (maxS b b') (stackWidth tl tl')
+stackWidth (Shift f b tl) (Fixed f') = Shift f (maxS b f') tl
 
 extWidth :: Int -> Width -> Width
 extWidth w (Fixed f) = Fixed (fixedScale w + f)

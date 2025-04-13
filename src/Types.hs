@@ -56,7 +56,7 @@ data DocTree
   | DLayout    Int   Doc
   | DColor     Color Doc
   | DBox       Doc
-  | DFlex      Int   Doc
+  | DFlex      Int 
   | forall a. DCustom a (Int -> Int -> a -> CtxBox)   
 
 instance Show DocTree where
@@ -70,7 +70,7 @@ instance Show DocTree where
   show (DStack seq)  = "(Stack "  ++ foldr (\r l -> show r ++ " " ++ l) "" seq ++ ")"
   show (DEither l r) = "(Either " ++ show l ++ " " ++ show r ++ ")"
   show (DLayout n d) = "(Lay "    ++ show n ++ " " ++ show d ++ ")"
-  show (DFlex e d)   = "(DFlex "  ++ show e ++ " " ++ show d ++ ")"
+  show (DFlex e)     = "(DFlex "  ++ show e ++ ")"
   show (DCustom _ _) = "(Custom #)"
 
 type CtxBox = ([Line], Int)

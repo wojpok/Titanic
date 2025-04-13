@@ -52,8 +52,8 @@ ppColor c d@(Doc _ w) = Doc (DColor c d) $ w
 ppBox :: Doc -> Doc
 ppBox d@(Doc _ w) = Doc (DBox d) $ extWidth 1 $ backExtWidth 1 w
 
-ppFlex :: Int -> Doc -> Doc
-ppFlex w d@(Doc _ s) = Doc (DFlex w d) $ addFlexWidth w s
+ppFlex :: Int -> Doc
+ppFlex w = Doc (DFlex w) $ addFlexWidth w $ fixedWidth 0
 
 (<+>) :: Doc -> Doc -> Doc
 (<+>) l r = ppSeq [l, r]
@@ -129,11 +129,17 @@ sumFst :: [Int] -> [Int]
 sumFst (x:y:tl) = (x + y):tl
 sumFst [_] = []
 
-type ShiftState = State [Int]
+type ShiftState = State ((Int, Int), [Int])
+
+getShifts :: ShiftState [Int]
+getShifts = return . snd =<< get
+
+putShifts :: [Int] -> ShiftState ()
+putShifts xs = modify $ \(x, _) -> (x, xs)
 
 pop :: ShiftState Int
-pop = do xs <- get
-         put $ sumFst xs
+pop = do xs <- getShifts
+         putShifts $ sumFst xs
          return (head xs)
 
 popN :: Int -> ShiftState ()
@@ -160,7 +166,7 @@ toLines size offset (Doc d w) = do
     DAlignR doc -> do
       let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
       shiftBt $ do
-        put shifts
+        putShifts shifts
         toLines (sum shifts) 0 doc
     DSeq ds -> do
       iter size offset ds where
@@ -188,19 +194,13 @@ toLines size offset (Doc d w) = do
     DEither doc1 doc2 -> undefined
     DLayout size' doc -> toLines size' offset doc
     DCustom d cont -> return $ cont size offset d
-    DFlex flex d -> do 
-      (lines, size') <- toLines size offset d
-      if size' >= size then
-        return (lines, size')
-      else do
-        let remaining = min flex (size - size')
-        return (map (LConcat (LFill " " remaining)) lines, size' + remaining)
+    DFlex flex -> return $ ([LFill " " 1], 1)
 -- toLines = undefined
 
 showDoc :: Doc -> String
 showDoc d = do
-  let w = maxWidth $ width $ getWidth d
-  let (ls, _) = fst $ runState (toLines w 0 d) []
+  let w = minWidth $ width $ getWidth d
+  let (ls, _) = fst $ runState (toLines w 0 d) ((0, 0), [])
   genLine $ reduceLines $ trColorLine ls
 
 inspectDoc :: Doc -> IO ()
@@ -235,8 +235,8 @@ inspectDoc = putStr . showDoc . ppAlignR . makeDoc where
     ppStack $ [i $ ppString "Seq"] ++ map (ident . makeDoc) xs
   makeDTree i (DStack xs) =
     ppStack $ [i $ ppString "Stack"] ++ map (ident . makeDoc) xs
-  makeDTree i (DFlex n d) =
-    ppStack $ [i $ ppString ("Flex " ++ show n), ident $ makeDoc d]
+  makeDTree i (DFlex n) =
+    i $ ppString ("Flex " ++ show n)
   makeDTree i (DLayout n d) =
     ppStack $ [i $ ppString ("Lay " ++ show n), ident $ makeDoc d]
   makeDTree i (DCustom _ _) =
