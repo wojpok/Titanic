@@ -10,6 +10,22 @@ import Types
 import System.IO.Unsafe
 import GHC.Utils.Misc
 
+{-
+Algebra kombinatorów
+
+flex n <+> flex m = flex (n + m)
+ppSeq (x :: xs) = x <+> ppSeq xs
+ppSeq [x] = x
+(x <+> y) <+> z = x <+> (y <+> z)
+&ppSeq (x :: xs) = &x <+> ppSeq xs = ppSeq (&x :: xs)
+
+Do dodania:
+  - separatory
+  - smushing linii
+  - znaki trailujące
+  - boxy
+-}
+
 getWidth :: Doc -> Width
 getWidth (Doc _ snd) = snd
 
@@ -102,16 +118,16 @@ reduceLines :: [Line] -> Line
 reduceLines [] = LEmpty
 reduceLines (l:ls) = LConcat l (LConcat (LChar '\n') $ reduceLines ls) 
 
-linesFill :: Int -> Int -> [Line] -> [Line] -> [Line]
+linesFill :: Line -> Line -> [Line] -> [Line] -> [Line]
 linesFill sl sr (l:ls) (r:rs) = LConcat l r : linesFill sl sr ls rs
-linesFill sl sr [] (r:rs) = LConcat (LFill " " sl) r : linesFill sl sr [] rs
-linesFill sl sr (l:ls) [] = LConcat l (LFill " " sr) : linesFill sl sr ls []
+linesFill sl sr [] (r:rs) = LConcat sl r : linesFill sl sr [] rs
+linesFill sl sr (l:ls) [] = LConcat l sr : linesFill sl sr ls []
 linesFill _ _ [] [] = []
 
 alignDoc :: Int -> CtxBox -> CtxBox 
-alignDoc target c@(xs, current) 
+alignDoc target c@(xs, fill, current) 
   | target == current = c
-  | otherwise = (, target) $ do
+  | otherwise = (, LConcat (eLine (target - current)) fill, target) $ do
     x <- xs
     return (LConcat x (LFill " " (target - current)))
 
@@ -184,37 +200,37 @@ toLines :: Int -> Int -> Doc -> ShiftState CtxBox
 toLines size offset (Doc d w) = do
   let totWidth = minWidth $ width w
   case d of
-    DEmpty ->      return ([LEmpty], 0)
-    DString str -> return ([LString str], totWidth)
+    DEmpty ->      return ([LEmpty], LEmpty, 0)
+    DString str -> return ([LString str], eLine totWidth, totWidth)
     DAlignS doc -> do
       shift <- pop
       nextShift <- shiftBt $ pop
       --putSpread $ populateSpreadState (nextShift - shift) (singleScale $ getWidth doc)
       popSpread (nextShift - shift - 1) size
       let missingShift = shift - offset
-      (tl, ts) <- toLines (size - missingShift) (offset + missingShift) doc
-      let ls = linesFill missingShift ts [] tl
+      (tl, fill, ts) <- toLines (size - missingShift) (offset + missingShift) doc
+      let ls = linesFill (eLine missingShift) fill [] tl
       st <- get
       -- (unsafePerformIO $ print st) `seq`
-      return (ls, (missingShift + ts))
+      return (ls, LConcat (eLine missingShift) fill, (missingShift + ts))
     DAlignR doc -> do
       let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
       shiftBt $ do
         updateSpreads $ getWidth $ doc
         putSpread $ populateSpreadState (head shifts - offset) (singleScale $ getWidth doc)
         putShifts shifts
-        st <- get
-        (unsafePerformIO $ print st) `seq`
-          toLines (sum shifts) 0 doc
+        --st <- get
+        --(unsafePerformIO $ print st) `seq`
+        toLines (sum shifts) 0 doc
     DSeq ds -> do
       iter size offset ds where
         iter :: Int -> Int -> [Doc] -> ShiftState CtxBox
-        iter size off [] = return ([], 0)
+        iter size off [] = return ([], LEmpty, 0)
         iter size off (d@(Doc _ w):ds) = do
-          (os, o) <- toLines size off d 
-          (ts, size') <- iter (size - o) (off + o) ds
-          let lines = linesFill o size' os ts
-          return (lines, (o + size')) 
+          (os, sep, o) <- toLines size off d 
+          (ts, sep', size') <- iter (size - o) (off + o) ds
+          let lines = linesFill sep sep' os ts
+          return (lines, LConcat sep sep', (o + size')) 
     DStack ds -> do
       spread <- getSpread
       let (size', spread') = assignSpreadState (getFlex $ singleScale w) spread
@@ -223,21 +239,21 @@ toLines size offset (Doc d w) = do
         updateSpreads $ getWidth $ doc
         nextShift <- shiftBt $ pop
         popSpread (nextShift - offset) (size' + (getFixed $ singleScale w))
-        st <- get
-        (unsafePerformIO $ print ("stack", offset, nextShift, size, size', st)) `seq`
-          toLines size offset doc
-      let maxSize = foldr (\(_, s) s' -> max s s') 0 ds'
+        -- st <- get
+        -- (unsafePerformIO $ print ("stack", offset, nextShift, size, size', st)) `seq`
+        toLines size offset doc
+      let maxSize = foldr (\(_, _, s) s' -> max s s') 0 ds'
       let aligned = map (\box -> alignDoc maxSize box) ds'
-      return (concat (map fst aligned), maxSize)
+      return (concat (map fstOf3 aligned), eLine maxSize, maxSize)
     DColor col doc -> do
-      (lines, w) <- toLines size offset doc
-      return (map (\l -> LConcat (LColor col) (LConcat l LColorPop)) lines, w)
+      (lines, fill, w) <- toLines size offset doc
+      return (map (\l -> LConcat (LColor col) (LConcat l LColorPop)) lines, fill, w)
     DBox doc -> do
-      (lines, w) <- toLines (size - 2) (offset + 1) doc
+      (lines, _, w) <- toLines (size - 2) (offset + 1) doc
       let mapped = map (\l -> LConcat (LString "│") (LConcat l (LString "│"))) lines
           topLine    = (LConcat (LString "╭") (LConcat (LFill "─" w) (LString "╮")))
           bottomLine = (LConcat (LString "╰") (LConcat (LFill "─" w) (LString "╯")))
-      return ([topLine]  ++ mapped ++ [bottomLine], w + 2)
+      return ([topLine]  ++ mapped ++ [bottomLine], eLine $ w + 2, w + 2)
     DEither doc1 doc2 -> undefined
     DLayout size' doc -> toLines size' offset doc
     DCustom d cont -> return $ cont size offset d
@@ -245,12 +261,15 @@ toLines size offset (Doc d w) = do
       spread <- getSpread
       let (size, spread') = assignSpreadState flex spread
       putSpread spread'
-      return $ ([LFill " " size], size)
+      return $ ([eLine size], eLine size, size)
+
+eLine :: Int -> Line
+eLine = LFill " "
 
 showDoc :: Doc -> String
 showDoc d = do
   let w = minWidth $ width $ getWidth d
-  let (ls, _) = fst $ runState (toLines w 0 d) ((0, 0), [], [])
+  let (ls, _, _) = fst $ runState (toLines w 0 d) ((0, 0), [], [])
   genLine $ reduceLines $ trColorLine ls
 
 inspectDoc :: Doc -> IO ()

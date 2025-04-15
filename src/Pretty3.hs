@@ -92,6 +92,7 @@ fmtLift cont c@(CoreStyle name sty struct) =
     "string" -> do text <- getSStrI "str" c
                    return $ const $ ppString text
     "line" -> return $ const $ ppHLine
+    "sep" -> return $ const $ ppVLine
     "flex" -> do flex <- getSIntI "w" c
                  return (const $ ppFlex flex)
     "lay" -> do tl <- assertSingle c
@@ -197,7 +198,7 @@ testNewFormat =
                   )
                 )
               )
-              ' '
+              (sep)
               2(list {s: ' ', orient: ver} 
                   (inter
                   1(color:cyan 

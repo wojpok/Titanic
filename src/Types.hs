@@ -73,4 +73,4 @@ instance Show DocTree where
   show (DFlex e)     = "(DFlex "  ++ show e ++ ")"
   show (DCustom _ _) = "(Custom #)"
 
-type CtxBox = ([Line], Int)
+type CtxBox = ([Line], Line, Int)

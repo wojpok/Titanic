@@ -9,7 +9,7 @@ instance DocCustom FramIco where
   docLines _ _ FramIcoHuge  = icoDataHuge
 
 icoDataSmall :: CtxBox
-icoDataSmall = (map LString framIcoSmall, length $ head framIcoSmall)
+icoDataSmall = (map LString framIcoSmall, (LFill " " (length $ head framIcoSmall)), length $ head framIcoSmall)
 
 framIcoSmall :: [String]
 framIcoSmall = [
@@ -33,7 +33,7 @@ framIcoSmall = [
   ]
 
 icoDataHuge :: CtxBox
-icoDataHuge = (map LString framIcoHuge, length $ head framIcoHuge)
+icoDataHuge = (map LString framIcoHuge, (LFill " " (length $ head framIcoHuge)), length $ head framIcoHuge)
 
 framIcoHuge :: [String]
 framIcoHuge = [ 
