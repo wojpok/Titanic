@@ -159,11 +159,14 @@ pop = do xs <- getShifts
 popN :: Int -> ShiftState ()
 popN n = forM_ [1..n] $ const pop
 
-popSpread :: Int -> ShiftState ()
-popSpread nextShift = do 
+popSpread :: Int -> Int -> ShiftState ()
+popSpread nextShift size = do 
   spreads <- getSpreads
   case spreads of
-    [] -> do putSpread (0, 0)
+    [] -> do 
+      putSpread (0, 0)
+    [x] -> do
+      putSpread $ populateSpreadState (size) x
     x : xs -> do
       putSpreads xs
       putSpread $ populateSpreadState nextShift x
@@ -187,18 +190,22 @@ toLines size offset (Doc d w) = do
       shift <- pop
       nextShift <- shiftBt $ pop
       --putSpread $ populateSpreadState (nextShift - shift) (singleScale $ getWidth doc)
-      popSpread (nextShift - shift)
+      popSpread (nextShift - shift - 1) size
       let missingShift = shift - offset
       (tl, ts) <- toLines (size - missingShift) (offset + missingShift) doc
       let ls = linesFill missingShift ts [] tl
-      return (ls, (missingShift + ts)) 
+      st <- get
+      -- (unsafePerformIO $ print st) `seq`
+      return (ls, (missingShift + ts))
     DAlignR doc -> do
       let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
       shiftBt $ do
-        putShifts shifts
         updateSpreads $ getWidth $ doc
         putSpread $ populateSpreadState (head shifts - offset) (singleScale $ getWidth doc)
-        toLines (sum shifts) 0 doc
+        putShifts shifts
+        st <- get
+        (unsafePerformIO $ print st) `seq`
+          toLines (sum shifts) 0 doc
     DSeq ds -> do
       iter size offset ds where
         iter :: Int -> Int -> [Doc] -> ShiftState CtxBox
@@ -209,11 +216,16 @@ toLines size offset (Doc d w) = do
           let lines = linesFill o size' os ts
           return (lines, (o + size')) 
     DStack ds -> do
+      spread <- getSpread
+      let (size', spread') = assignSpreadState (getFlex $ singleScale w) spread
+      putSpread spread'
       ds' <- flip mapM ds $ \doc -> shiftBt $ do 
         updateSpreads $ getWidth $ doc
         nextShift <- shiftBt $ pop
-        popSpread (nextShift - offset)
-        toLines size offset doc
+        popSpread (nextShift - offset) (size' + (getFixed $ singleScale w))
+        st <- get
+        (unsafePerformIO $ print ("stack", offset, nextShift, size, size', st)) `seq`
+          toLines size offset doc
       let maxSize = foldr (\(_, s) s' -> max s s') 0 ds'
       let aligned = map (\box -> alignDoc maxSize box) ds'
       return (concat (map fst aligned), maxSize)

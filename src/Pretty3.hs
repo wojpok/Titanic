@@ -98,7 +98,16 @@ fmtLift cont c@(CoreStyle name sty struct) =
                 flex <- getSIntI "w" c
                 fmt <- fmtLift cont tl
                 return (ppLayout flex . fmt)
-      
+    "inter" -> do
+      let mapped = map recf struct
+          recf :: CoreInterp -> Err (a -> Doc) 
+          recf (CoreInterp 1 f) = fmtLift cont f
+          recf (CoreInterp _ f) = fmt @() f >>= \fx -> pure (fx . const ())
+      orient <- getSStrI "orient" c `alter` pure "hor" 
+      fs <- sequence mapped
+      case orient of
+        "hor" -> return $ \p -> (ppSeq $ fs <*> [p])
+        "ver" -> return $ \p -> (ppStack $ fs <*> [p])
     _ -> cont c
 
 class Formatable a where
@@ -174,21 +183,44 @@ makeFmt style d = do
                   putStr $ showDoc d
 
 testNewFormat = 
-  makeFmt @[[Int]]
+  makeFmt @([Int], [Int])
           """
-          (color:red
-            *(list:hor
-              (list {s: ' ', orient: ver} 
-                &(box 
-                  (color:cyan 
+          (lay:40
+          *(color:red
+            (box
+            (tuple2:hor
+              1(list {s: ' ', orient: ver} 
+                (inter
+                  (flex:1)
+                  1(color:cyan 
                     (int {repr: 'x'})
                   )
                 )
               )
+              ' '
+              2(list {s: ' ', orient: ver} 
+                  (inter
+                  1(color:cyan 
+                    (int {repr: 'x'})
+                  )
+                (flex:1)
+                )
+              )
+            )
             )
           )
+          )
           """
-          [[10, 20, 30], [5000, 50000, 6000]]
+          ([10, 20, 30000], [5000, 50000, 600000000])
+
+{-
+╭──────────────────────────────────────────────────────────────────────╮
+│                                    10 0x1388                         │
+│                                    20 0xc350                         │
+│                                 30000 0x23c34600                     │
+╰──────────────────────────────────────────────────────────────────────╯
+
+-}
 
 testNewFormat2 = 
   makeFmt @((Int, Int), (Int, Int))

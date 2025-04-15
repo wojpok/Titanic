@@ -141,7 +141,7 @@ populateSpreadState size (Scale fixed float)
 
 assignSpreadState :: Int -> (Int, Int) -> (Int, (Int, Int))
 assignSpreadState float (perPoint, overflow) =
-  let over = min perPoint overflow
+  let over = min float overflow
       size = float * perPoint + over
   in (size, (perPoint, overflow - over))
 
@@ -152,3 +152,9 @@ spreads (Shift (Scale _ f) _ tl) = f : spreads tl
 scales :: Width -> [Scale]
 scales (Fixed f) = [f]
 scales (Shift f _ tl) = f : scales tl
+
+getFlex :: Scale -> Int
+getFlex (Scale _ x) = x
+
+getFixed :: Scale -> Int
+getFixed (Scale x _) = x
