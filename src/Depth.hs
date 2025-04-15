@@ -144,3 +144,11 @@ assignSpreadState float (perPoint, overflow) =
   let over = min perPoint overflow
       size = float * perPoint + over
   in (size, (perPoint, overflow - over))
+
+spreads :: Width -> [Int]
+spreads (Fixed (Scale _ f)) = [f]
+spreads (Shift (Scale _ f) _ tl) = f : spreads tl
+
+scales :: Width -> [Scale]
+scales (Fixed f) = [f]
+scales (Shift f _ tl) = f : scales tl

@@ -8,6 +8,7 @@ import Depth
 import Colors
 import Types
 import System.IO.Unsafe
+import GHC.Utils.Misc
 
 getWidth :: Doc -> Width
 getWidth (Doc _ snd) = snd
@@ -127,21 +128,28 @@ alignDoc target c@(xs, current)
 
 sumFst :: [Int] -> [Int]
 sumFst (x:y:tl) = (x + y):tl
-sumFst [_] = []
+sumFst [x] = [x]
 
-type ShiftState = State ((Int, Int), [Int])
+-- 3 state logic --    curr spread, spreads, shifs
+type ShiftState = State ((Int, Int), [Scale], [Int])
 
 getShifts :: ShiftState [Int]
-getShifts = return . snd =<< get
+getShifts = return . thdOf3 =<< get
 
 putShifts :: [Int] -> ShiftState ()
-putShifts xs = modify $ \(x, _) -> (x, xs)
+putShifts = modify . third3 . const
+
+getSpreads :: ShiftState [Scale]
+getSpreads = return . sndOf3 =<< get
+
+putSpreads :: [Scale] -> ShiftState ()
+putSpreads = modify . snd3 . const
 
 getSpread :: ShiftState (Int, Int)
-getSpread = return . fst =<< get
+getSpread = return . fstOf3 =<< get
 
 putSpread :: (Int, Int) -> ShiftState ()
-putSpread p = modify $ \(_, xs) -> (p, xs)
+putSpread = modify . fst3 . const
 
 pop :: ShiftState Int
 pop = do xs <- getShifts
@@ -151,11 +159,23 @@ pop = do xs <- getShifts
 popN :: Int -> ShiftState ()
 popN n = forM_ [1..n] $ const pop
 
+popSpread :: Int -> ShiftState ()
+popSpread nextShift = do 
+  spreads <- getSpreads
+  case spreads of
+    [] -> do putSpread (0, 0)
+    x : xs -> do
+      putSpreads xs
+      putSpread $ populateSpreadState nextShift x
+
 shiftBt :: ShiftState a -> ShiftState a
 shiftBt m = do st <- get
                res <- m
                put st
                return res
+
+updateSpreads :: Width -> ShiftState ()
+updateSpreads = putSpreads . scales
 
 toLines :: Int -> Int -> Doc -> ShiftState CtxBox
 toLines size offset (Doc d w) = do
@@ -166,16 +186,18 @@ toLines size offset (Doc d w) = do
     DAlignS doc -> do
       shift <- pop
       nextShift <- shiftBt $ pop
-      putSpread $ populateSpreadState (nextShift - shift) (singleScale $ getWidth doc)
+      --putSpread $ populateSpreadState (nextShift - shift) (singleScale $ getWidth doc)
+      popSpread (nextShift - shift)
       let missingShift = shift - offset
       (tl, ts) <- toLines (size - missingShift) (offset + missingShift) doc
       let ls = linesFill missingShift ts [] tl
       return (ls, (missingShift + ts)) 
     DAlignR doc -> do
       let shifts = shiftAllocation Float size $ shiftList $ getWidth doc
-      putSpread $ populateSpreadState (head shifts - offset) (singleScale $ getWidth doc)
       shiftBt $ do
         putShifts shifts
+        updateSpreads $ getWidth $ doc
+        putSpread $ populateSpreadState (head shifts - offset) (singleScale $ getWidth doc)
         toLines (sum shifts) 0 doc
     DSeq ds -> do
       iter size offset ds where
@@ -187,7 +209,11 @@ toLines size offset (Doc d w) = do
           let lines = linesFill o size' os ts
           return (lines, (o + size')) 
     DStack ds -> do
-      ds' <- mapM (shiftBt . toLines size offset) ds
+      ds' <- flip mapM ds $ \doc -> shiftBt $ do 
+        updateSpreads $ getWidth $ doc
+        nextShift <- shiftBt $ pop
+        popSpread (nextShift - offset)
+        toLines size offset doc
       let maxSize = foldr (\(_, s) s' -> max s s') 0 ds'
       let aligned = map (\box -> alignDoc maxSize box) ds'
       return (concat (map fst aligned), maxSize)
@@ -212,7 +238,7 @@ toLines size offset (Doc d w) = do
 showDoc :: Doc -> String
 showDoc d = do
   let w = minWidth $ width $ getWidth d
-  let (ls, _) = fst $ runState (toLines w 0 d) ((0, 0), [])
+  let (ls, _) = fst $ runState (toLines w 0 d) ((0, 0), [], [])
   genLine $ reduceLines $ trColorLine ls
 
 inspectDoc :: Doc -> IO ()

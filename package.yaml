@@ -25,6 +25,7 @@ dependencies:
 - containers
 - parsec
 - mtl
+- ghc == 9.12.2
 
 ghc-options:
 - -XTypeApplications

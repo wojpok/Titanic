@@ -202,17 +202,16 @@ testNewFormat2 =
                     (flex:5)
                     1(int)
                     (flex:5)
-                    ' '
-                    2&(int)
-                    (flex:5)
+                    &(color:red '| ')
+                    (flex:10)
+                    2(int)
                   )
                   (color:red (line))
                   2(tuple2:hor
-                    (flex:10)
+                    (flex:5)
                     1(int)
-                    ' '
-                    2&(int)
-                    (flex: 20)
+                    &(color:red '| ')
+                    2(int)
                   )
                 )
               )
