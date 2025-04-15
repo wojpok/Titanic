@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, Strict #-}
+{-# LANGUAGE TupleSections, Strict, LambdaCase #-}
 
 module Pretty2 where
 
@@ -9,6 +9,7 @@ import Colors
 import Types
 import System.IO.Unsafe
 import GHC.Utils.Misc
+import Borders
 
 {-
 Algebra kombinatorów
@@ -20,8 +21,6 @@ ppSeq [x] = x
 &ppSeq (x :: xs) = &x <+> ppSeq xs = ppSeq (&x :: xs)
 
 Do dodania:
-  - separatory
-  - smushing linii
   - znaki trailujące
   - boxy
 -}
@@ -107,7 +106,6 @@ genLine line = iter line [] where
   iter (LString str) acc = str ++ acc
   iter (LChar ch) acc = ch:acc
   iter (LConcat s1 s2) acc = iter s1 (iter s2 acc)
-  iter (LAlignLeft str) acc = iter str acc
   iter (LFill ch n) acc = iter' n ch acc where
     iter' n ch acc
         | n <= 0    = acc
@@ -117,6 +115,30 @@ genLine line = iter line [] where
 reduceLines :: [Line] -> Line
 reduceLines [] = LEmpty
 reduceLines (l:ls) = LConcat l (LConcat (LChar '\n') $ reduceLines ls) 
+
+data Coltrol = CPush Color | CPop
+
+genPString :: Line -> [Either Coltrol Char]
+genPString = iter [] where
+  iter acc = \case
+    LString str -> map Right str ++ acc
+    LChar ch    -> Right ch : acc
+    LConcat s1 s2 -> iter (iter acc s2) s1
+    LFill ch n  -> concat (replicate n (map Right ch)) ++ acc 
+    LEmpty      -> acc
+    LColor c    -> Left (CPush c) : acc
+    LColorPop   -> Left CPop      : acc
+
+
+resolveColors :: [Either Coltrol Char] -> PString 
+resolveColors xs = fst $ runState (iter xs) [] where
+  iter :: [Either Coltrol Char] -> State [Color] PString
+  iter []                 = return []
+  iter ((Right x) : xs)   = (Right x:) <$> iter xs
+  iter (Left (CPush c) : xs) = pushCol c >> (((Left $ ansiColorFg c):) <$> iter xs)
+  iter (Left CPop : xs)    = do col <- popCol
+                                ((Left col) :) <$> iter xs
+
 
 linesFill :: Line -> Line -> [Line] -> [Line] -> [Line]
 linesFill sl sr (l:ls) (r:rs) = LConcat l r : linesFill sl sr ls rs
@@ -238,9 +260,11 @@ toLines size offset (Doc d w) = do
       ds' <- flip mapM ds $ \doc -> shiftBt $ do 
         updateSpreads $ getWidth $ doc
         nextShift <- shiftBt $ pop
+        -- tu jest taki problem, że trzeba zrobić osobnego case'a jeśli nie ma shiftów pod spodem
+        -- poza tym jest ok
         popSpread (nextShift - offset) (size' + (getFixed $ singleScale w))
-        -- st <- get
-        -- (unsafePerformIO $ print ("stack", offset, nextShift, size, size', st)) `seq`
+        st <- get
+        --(unsafePerformIO $ print ("stack", offset, nextShift, size, size', st)) `seq`
         toLines size offset doc
       let maxSize = foldr (\(_, _, s) s' -> max s s') 0 ds'
       let aligned = map (\box -> alignDoc maxSize box) ds'
@@ -270,7 +294,7 @@ showDoc :: Doc -> String
 showDoc d = do
   let w = minWidth $ width $ getWidth d
   let (ls, _, _) = fst $ runState (toLines w 0 d) ((0, 0), [], [])
-  genLine $ reduceLines $ trColorLine ls
+  foldAll $ smushAll $ map (resolveColors . genPString) ls
 
 inspectDoc :: Doc -> IO ()
 inspectDoc = putStr . showDoc . ppAlignR . makeDoc where

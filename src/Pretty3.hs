@@ -190,6 +190,7 @@ testNewFormat =
           *(color:red
             (box
             (tuple2:hor
+              (sep)
               1(list {s: ' ', orient: ver} 
                 (inter
                   (flex:1)
@@ -207,21 +208,13 @@ testNewFormat =
                 (flex:1)
                 )
               )
+              (sep)
             )
             )
           )
           )
           """
-          ([10, 20, 30000], [5000, 50000, 600000000])
-
-{-
-╭──────────────────────────────────────────────────────────────────────╮
-│                                    10 0x1388                         │
-│                                    20 0xc350                         │
-│                                 30000 0x23c34600                     │
-╰──────────────────────────────────────────────────────────────────────╯
-
--}
+          ([10, 20, 30000], [5000, 50000, 600000000, 60, 700, 34, 3000])
 
 testNewFormat2 = 
   makeFmt @((Int, Int), (Int, Int))
@@ -229,22 +222,26 @@ testNewFormat2 =
           (lay:40
           *(color:red
             (box
-              (color:white
-                (tuple2:ver
-                  1(tuple2:hor
-                    (flex:5)
-                    1(int)
-                    (flex:5)
-                    &(color:red '| ')
-                    (flex:10)
-                    2(int)
-                  )
-                  (color:red (line))
-                  2(tuple2:hor
-                    (flex:5)
-                    1(int)
-                    &(color:red '| ')
-                    2(int)
+              (inter:ver
+                (inter:hor 'Num' &(sep) 'Bin')
+                (line)
+                1(color:white
+                  (tuple2:ver
+                    1(tuple2:hor
+                      (flex:5)
+                      1(int)
+                      (flex:5)
+                      &(color:red (sep))
+                      (flex:10)
+                      2(int)
+                    )
+                    (color:red (line))
+                    2(tuple2:hor
+                      (flex:5)
+                      1(int)
+                      &(color:red (sep))
+                      2(int)
+                    )
                   )
                 )
               )
@@ -262,3 +259,34 @@ pato = ppAlignR $ ppSeq [ ppStack [ ppShow "aaa"
                                   ]
                         , ppAlignS $ ppShow "x"
                         ]
+
+hexTable =
+  makeFmt @[Int]
+          """
+          (lay:40
+          (color:yellow
+          *(box
+            (color:white 
+            (inter:ver
+              (color:cyan (line))
+              (inter (flex:1) '    Decimal' &(sep) 'Hexadecimal' (flex:1))
+              (color:red (line))
+              1(list:ver
+                (inter
+                  (sep)
+                  (flex:1)
+                  1(int)
+                  &' = '
+                  1(int:x)
+                  (flex:1)
+                  (sep)
+                )
+              )
+              (color:green (line))
+            )
+            )
+          )
+          )
+          )
+          """
+          [40, 60, 70, 12312312, 43434, 545452]
